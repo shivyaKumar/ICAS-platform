@@ -1,26 +1,102 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+/* Custom CSS variables */
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* 🎨 Light Mode Colors */
+    --background: 0 0% 100%;       /* White */
+    --foreground: 0 0% 10%;        /* Almost Black */
+
+    --card: 0 0% 100%;             /* White */
+    --card-foreground: 0 0% 10%;   /* Black text */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 50 100% 50%;        /* Yellow (#FFD700) */
+    --primary-foreground: 0 0% 0%; /* Black */
+
+    --secondary: 0 0% 95%;         /* Light Grey */
+    --secondary-foreground: 0 0% 10%; /* Black */
+
+    --muted: 0 0% 95%;             /* Grey */
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 50 100% 50%;         /* Yellow */
+    --accent-foreground: 0 0% 0%;  /* Black */
+
+    --destructive: 0 84.2% 60.2%;  /* Red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 80%;            /* Light border grey */
+    --input: 0 0% 85%;             /* Input field grey */
+
+    --ring: 50 100% 50%;           /* Yellow focus rings */
+
+    /* Chart colors can stay */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* 🎨 Dark Mode Colors */
+    --background: 0 0% 10%;         /* Black */
+    --foreground: 0 0% 95%;         /* White */
+
+    --card: 0 0% 15%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 15%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 50 100% 50%;         /* Yellow */
+    --primary-foreground: 0 0% 0%;  /* Black */
+
+    --secondary: 0 0% 20%;          /* Dark grey */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 50 100% 50%;          /* Yellow */
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 62.8% 30.6%;   /* Dark red */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 30%;
+    --input: 0 0% 30%;
+    --ring: 50 100% 50%;
+
+    /* Chart colors */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Border style applied to all elements */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Add full height and overflow for root elements */
+  html, body, #__next {
+    @apply h-full;
+    overflow-y: auto;
+  }
 }
