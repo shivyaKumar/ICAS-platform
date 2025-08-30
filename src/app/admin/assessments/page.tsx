@@ -19,7 +19,7 @@ export default function AssessmentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Create New */}
         <Link href="/admin/assessments/createNewAssessment">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer">
+          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-primary">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <PlusCircle className="h-5 w-5 text-primary" />
@@ -36,10 +36,10 @@ export default function AssessmentsPage() {
 
         {/* Current */}
         <Link href="/admin/assessments/current">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer">
+          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-primary">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-yellow-500" />
+                <ClipboardList className="h-5 w-5 text-primary" />
                 Current Assessments
               </CardTitle>
             </CardHeader>
@@ -53,7 +53,7 @@ export default function AssessmentsPage() {
 
         {/* Completed */}
         <Link href="/admin/assessments/completed">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer">
+          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-green-600">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />

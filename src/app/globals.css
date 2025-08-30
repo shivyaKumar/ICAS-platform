@@ -5,7 +5,7 @@
 /* Custom CSS variables */
 @layer base {
   :root {
-    /* 🎨 Light Mode Colors */
+    /* Light Mode Colors */
     --background: 0 0% 100%;       /* White */
     --foreground: 0 0% 10%;        /* Almost Black */
 
@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    --primary: 50 100% 50%;        /* Yellow (#FFD700) */
+    --primary: 45 90% 50%;         /* Golden Yellow (#F4B400) */
     --primary-foreground: 0 0% 0%; /* Black */
 
     --secondary: 0 0% 95%;         /* Light Grey */
@@ -24,7 +24,7 @@
     --muted: 0 0% 95%;             /* Grey */
     --muted-foreground: 0 0% 45%;
 
-    --accent: 50 100% 50%;         /* Yellow */
+    --accent: 45 90% 50%;          /* Golden Yellow (same as button) */
     --accent-foreground: 0 0% 0%;  /* Black */
 
     --destructive: 0 84.2% 60.2%;  /* Red */
@@ -33,7 +33,7 @@
     --border: 0 0% 80%;            /* Light border grey */
     --input: 0 0% 85%;             /* Input field grey */
 
-    --ring: 50 100% 50%;           /* Yellow focus rings */
+    --ring: 45 90% 50%;            /* Yellow focus rings */
 
     /* Chart colors can stay */
     --chart-1: 12 76% 61%;
@@ -46,7 +46,7 @@
   }
 
   .dark {
-    /* 🎨 Dark Mode Colors */
+    /* Dark Mode Colors */
     --background: 0 0% 10%;         /* Black */
     --foreground: 0 0% 95%;         /* White */
 
@@ -56,7 +56,7 @@
     --popover: 0 0% 15%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 50 100% 50%;         /* Yellow */
+    --primary: 45 90% 50%;          /* Golden Yellow (#F4B400) */
     --primary-foreground: 0 0% 0%;  /* Black */
 
     --secondary: 0 0% 20%;          /* Dark grey */
@@ -65,7 +65,7 @@
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 70%;
 
-    --accent: 50 100% 50%;          /* Yellow */
+    --accent: 45 90% 50%;           /* Golden Yellow */
     --accent-foreground: 0 0% 0%;
 
     --destructive: 0 62.8% 30.6%;   /* Dark red */
@@ -73,7 +73,7 @@
 
     --border: 0 0% 30%;
     --input: 0 0% 30%;
-    --ring: 50 100% 50%;
+    --ring: 45 90% 50%;
 
     /* Chart colors */
     --chart-1: 220 70% 50%;

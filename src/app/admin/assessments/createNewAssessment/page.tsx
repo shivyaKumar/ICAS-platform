@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label"; // use Label
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function CreateAssessmentPage() {
   const [selectedFramework, setSelectedFramework] = useState("");
@@ -10,7 +19,7 @@ export default function CreateAssessmentPage() {
   const [selectedOwner, setSelectedOwner] = useState("");
   const [assessmentDate, setAssessmentDate] = useState("");
 
-  // Mock static dropdown options for now
+  // Mock static dropdown options
   const frameworks = [
     { id: "iso27001", name: "ISO 27001" },
     { id: "nist", name: "NIST CSF" },
@@ -49,70 +58,71 @@ export default function CreateAssessmentPage() {
         <CardContent className="space-y-4">
           {/* Framework */}
           <div>
-            <label className="block text-sm font-medium">Select Framework</label>
-            <select
-              className="w-full border p-2 rounded mt-1"
-              value={selectedFramework}
-              onChange={(e) => setSelectedFramework(e.target.value)}
-            >
-              <option value="">-- Select Framework --</option>
-              {frameworks.map((fw) => (
-                <option key={fw.id} value={fw.id}>
-                  {fw.name}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor="framework">Select Framework</Label>
+            <Select onValueChange={setSelectedFramework} value={selectedFramework}>
+              <SelectTrigger id="framework">
+                <SelectValue placeholder="-- Select Framework --" />
+              </SelectTrigger>
+              <SelectContent>
+                {frameworks.map((fw) => (
+                  <SelectItem key={fw.id} value={fw.id}>
+                    {fw.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Division */}
           <div>
-            <label className="block text-sm font-medium">Select Division</label>
-            <select
-              className="w-full border p-2 rounded mt-1"
-              value={selectedDivision}
-              onChange={(e) => setSelectedDivision(e.target.value)}
-            >
-              <option value="">-- Select Division --</option>
-              {divisions.map((div) => (
-                <option key={div.id} value={div.id}>
-                  {div.name}
-                </option>
-              ))}
-            </select>
+            <Label htmlFor="division">Select Division</Label>
+            <Select onValueChange={setSelectedDivision} value={selectedDivision}>
+              <SelectTrigger id="division">
+                <SelectValue placeholder="-- Select Division --" />
+              </SelectTrigger>
+              <SelectContent>
+                {divisions.map((div) => (
+                  <SelectItem key={div.id} value={div.id}>
+                    {div.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Owner */}
           <div>
-            <label className="block text-sm font-medium">Owner (Auto-assigned)</label>
-            <select
-              className="w-full border p-2 rounded mt-1"
-              value={selectedOwner}
-              onChange={(e) => setSelectedOwner(e.target.value)}
-            >
-              <option value="">-- Select Owner --</option>
-              {owners
-                .filter((o) => o.divisionId === selectedDivision)
-                .map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.name}
-                  </option>
-                ))}
-            </select>
+            <Label htmlFor="owner">Owner (Auto-assigned)</Label>
+            <Select onValueChange={setSelectedOwner} value={selectedOwner}>
+              <SelectTrigger id="owner">
+                <SelectValue placeholder="-- Select Owner --" />
+              </SelectTrigger>
+              <SelectContent>
+                {owners
+                  .filter((o) => o.divisionId === selectedDivision)
+                  .map((owner) => (
+                    <SelectItem key={owner.id} value={owner.id}>
+                      {owner.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium">Assessment Date</label>
-            <input
+            <Label htmlFor="date">Assessment Date</Label>
+            <Input
+              id="date"
               type="date"
-              className="w-full border p-2 rounded mt-1"
               value={assessmentDate}
               onChange={(e) => setAssessmentDate(e.target.value)}
+              className="mt-1"
             />
           </div>
 
           {/* Submit */}
-          <Button onClick={handleSubmit} className="w-full bg-primary text-white">
+          <Button variant="secondary" onClick={handleSubmit} className="w-full">
             Submit
           </Button>
         </CardContent>
