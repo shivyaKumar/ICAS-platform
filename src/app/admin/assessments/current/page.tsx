@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input"; // reusable Input
@@ -47,6 +47,20 @@ export default function CurrentAssessmentsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [completedAssessments, setCompletedAssessments] = useState<any[]>([]);
 
+  // Hydrate completed list from localStorage on first load
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(
+        localStorage.getItem("completed_assessments") || "[]"
+      );
+      if (Array.isArray(existing) && existing.length) {
+        setCompletedAssessments(existing);
+      }
+    } catch {
+      /* ignore JSON errors */
+    }
+  }, []);
+
   // Handle updates
   const handleUpdate = (
     assessmentId: number,
@@ -75,19 +89,28 @@ export default function CurrentAssessmentsPage() {
     alert(`Review for ${updated?.framework} - ${updated?.division} saved!`);
   };
 
-  // Mark as Completed
+  // Mark as Completed (+ persist to localStorage for Completed page)
   const handleMarkCompleted = (assessmentId: number) => {
     const completed = currentAssessments.find((a) => a.id === assessmentId);
-    if (completed) {
-      setCompletedAssessments((prev) => [
-        ...prev,
-        { ...completed, status: "Completed" },
-      ]);
-      setCurrentAssessments((prev) =>
-        prev.filter((a) => a.id !== assessmentId)
+    if (!completed) return;
+
+    // Move in UI
+    const completedItem = { ...completed, status: "Completed" as const };
+    setCompletedAssessments((prev) => [completedItem, ...prev]);
+    setCurrentAssessments((prev) => prev.filter((a) => a.id !== assessmentId));
+
+    // Persist
+    try {
+      const existing = JSON.parse(
+        localStorage.getItem("completed_assessments") || "[]"
       );
-      alert(`${completed.framework} - ${completed.division} moved to Completed!`);
+      const next = Array.isArray(existing) ? [completedItem, ...existing] : [completedItem];
+      localStorage.setItem("completed_assessments", JSON.stringify(next));
+    } catch {
+      /* ignore JSON errors */
     }
+
+    alert(`${completed.framework} - ${completed.division} moved to Completed!`);
   };
 
   return (
@@ -218,10 +241,18 @@ export default function CurrentAssessmentsPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 mt-4">
-            <Button variant="secondary" size="sm" onClick={() => handleSaveReview(assessment.id)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleSaveReview(assessment.id)}
+            >
               Save Review
             </Button>
-            <Button variant="primary" size="sm" onClick={() => handleMarkCompleted(assessment.id)}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => handleMarkCompleted(assessment.id)}
+            >
               Mark as Completed
             </Button>
           </div>
@@ -236,7 +267,9 @@ export default function CurrentAssessmentsPage() {
             {completedAssessments.map((a) => (
               <li key={a.id}>
                 {a.framework} — {a.division} ({a.date})
-                <Badge variant="primary" className="ml-2">Completed</Badge>
+                <Badge variant="primary" className="ml-2">
+                  Completed
+                </Badge>
               </li>
             ))}
           </ul>

@@ -1,127 +1,183 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+type ControlRow = {
+  id: string;
+  name: string;
+  status: "Pending" | "Approved" | "Rejected";
+  implementation?: string;
+  gapDescription?: string;
+  assignedTo?: string;
+  evidence?: string;
+  review?: string;
+  comments?: string;
+  reviewDate?: string;
+};
+
+type Assessment = {
+  id: number;
+  framework: string;
+  division: string;
+  date: string; // ISO
+  status: "Completed";
+  controls: ControlRow[];
+};
 
 export default function CompletedAssessmentsPage() {
-  // 🔹 Mock completed data (replace with DB/API later)
-  const completedAssessments = [
-    {
-      id: 1,
-      framework: "ISO 27001",
-      division: "Finance",
-      date: "2025-08-20",
-      status: "Completed",
-      controls: [
-        {
-          id: "A.5.1.1",
-          name: "Information Security Policy",
-          status: "Approved",
-          implementation: "Implemented",
-          gapDescription: "No gaps",
-          assignedTo: "Alice",
-          evidence: "View File",
-          review: "Approved",
-          comments: "Well documented.",
-          reviewDate: "2025-08-22",
-        },
-        {
-          id: "A.9.2.1",
-          name: "Access Control",
-          status: "Rejected",
-          implementation: "Partial",
-          gapDescription: "Policy outdated",
-          assignedTo: "Bob",
-          evidence: "View File",
-          review: "Rejected",
-          comments: "Needs revision.",
-          reviewDate: "2025-08-23",
-        },
-      ],
-    },
-  ];
+  const [items, setItems] = useState<Assessment[]>([]);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
 
-  const handleGenerateReport = (assessmentId: number) => {
-    alert(`Report generated for assessment ID: ${assessmentId}`);
-  };
+  useEffect(() => {
+    // Load from localStorage (written by Current page when admin marks completed)
+    const raw =
+      typeof window !== "undefined"
+        ? localStorage.getItem("completed_assessments")
+        : null;
+    const data: Assessment[] = raw ? JSON.parse(raw) : [];
+    setItems(data);
+  }, []);
+
+  const toggleExpand = (id: number) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  // Generate PDF Report
+  async function handleReport(assessmentId: number) {
+    if (!apiBase) {
+      alert(
+        "Report generation requires the backend API. Set NEXT_PUBLIC_API_BASE in .env.local."
+      );
+      return;
+    }
+    try {
+      setDownloadingId(assessmentId);
+      const url = `${apiBase}/api/assessments/${assessmentId}/report?format=pdf`;
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) throw new Error("Failed to generate report");
+      const blob = await res.blob();
+
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `assessment_${assessmentId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
       <h2 className="text-2xl font-bold">Completed Assessments</h2>
-      <p className="text-gray-600">
-        Review completed assessments and generate reports.
+      <p className="text-sm text-muted-foreground">
+        Assessments that were marked completed by the admin.
       </p>
 
-      {completedAssessments.length === 0 ? (
+      {items.length === 0 ? (
         <Card className="shadow-md border rounded-lg p-6">
-          <p className="text-gray-500 italic">No completed assessments available.</p>
+          <p className="text-gray-500 italic">
+            No completed assessments available.
+          </p>
         </Card>
       ) : (
-        completedAssessments.map((assessment) => (
-          <Card key={assessment.id} className="shadow-md border rounded-lg">
-            <CardHeader>
-              <CardTitle>
-                {assessment.framework} — {assessment.division} ({assessment.date})
+        items.map((a) => (
+          <Card key={a.id} className="shadow-md border rounded-lg">
+            <CardHeader className="flex flex-col gap-1">
+              <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+                <span>
+                  {a.framework} — {a.division}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="primary">Completed</Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(a.date).toLocaleDateString()}
+                  </span>
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border text-sm min-w-[1000px]">
-                  <thead className="bg-gray-100 text-gray-700">
-                    <tr>
-                      <th className="border p-2">ID</th>
-                      <th className="border p-2">Control</th>
-                      <th className="border p-2">Status</th>
-                      <th className="border p-2">Implementation</th>
-                      <th className="border p-2">Gap Description</th>
-                      <th className="border p-2">Assigned To</th>
-                      <th className="border p-2">Evidence</th>
-                      <th className="border p-2">Review</th>
-                      <th className="border p-2">Comments</th>
-                      <th className="border p-2">Review Date</th>
-                      <th className="border p-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assessment.controls.map((ctrl) => (
-                      <tr key={ctrl.id} className="border-b">
-                        <td className="border p-2">{ctrl.id}</td>
-                        <td className="border p-2">{ctrl.name}</td>
-                        <td className="border p-2">
-                          {ctrl.status === "Pending" && (
-                            <Badge variant="secondary">Pending</Badge>
-                          )}
-                          {ctrl.status === "Approved" && (
-                            <Badge variant="primary">Approved</Badge>
-                          )}
-                          {ctrl.status === "Rejected" && (
-                            <Badge variant="destructive">Rejected</Badge>
-                          )}
-                        </td>
-                        <td className="border p-2">{ctrl.implementation}</td>
-                        <td className="border p-2">{ctrl.gapDescription}</td>
-                        <td className="border p-2">{ctrl.assignedTo}</td>
-                        <td className="border p-2 text-blue-600 underline cursor-pointer">
-                          {ctrl.evidence}
-                        </td>
-                        <td className="border p-2">{ctrl.review}</td>
-                        <td className="border p-2">{ctrl.comments}</td>
-                        <td className="border p-2">{ctrl.reviewDate}</td>
-                        <td className="border p-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleGenerateReport(assessment.id)}
-                          >
-                            Generate Report
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+            <CardContent className="space-y-4">
+              {/* Only one button: PDF */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => handleReport(a.id)}
+                  disabled={downloadingId === a.id}
+                >
+                  {downloadingId === a.id
+                    ? "Generating…"
+                    : "Generate PDF Report"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => toggleExpand(a.id)}
+                >
+                  {expanded[a.id] ? "Hide Controls" : "View Controls"}
+                </Button>
               </div>
+
+              {expanded[a.id] && (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border text-sm min-w-[900px]">
+                    <thead className="bg-gray-100 text-gray-700">
+                      <tr>
+                        <th className="border p-2 text-left">ID</th>
+                        <th className="border p-2 text-left">Control</th>
+                        <th className="border p-2 text-left">Status</th>
+                        <th className="border p-2 text-left">Implementation</th>
+                        <th className="border p-2 text-left">Gap Description</th>
+                        <th className="border p-2 text-left">Assigned To</th>
+                        <th className="border p-2 text-left">Evidence</th>
+                        <th className="border p-2 text-left">Review</th>
+                        <th className="border p-2 text-left">Comments</th>
+                        <th className="border p-2 text-left">Review Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {a.controls.map((c) => (
+                        <tr key={c.id} className="border-b">
+                          <td className="border p-2">{c.id}</td>
+                          <td className="border p-2">{c.name}</td>
+                          <td className="border p-2">
+                            {c.status === "Approved" && (
+                              <Badge variant="primary">Approved</Badge>
+                            )}
+                            {c.status === "Rejected" && (
+                              <Badge variant="destructive">Rejected</Badge>
+                            )}
+                            {c.status === "Pending" && (
+                              <Badge variant="secondary">Pending</Badge>
+                            )}
+                          </td>
+                          <td className="border p-2">
+                            {c.implementation || "-"}
+                          </td>
+                          <td className="border p-2">
+                            {c.gapDescription || "-"}
+                          </td>
+                          <td className="border p-2">{c.assignedTo || "-"}</td>
+                          <td className="border p-2">{c.evidence || "-"}</td>
+                          <td className="border p-2">{c.review || "-"}</td>
+                          <td className="border p-2">{c.comments || "-"}</td>
+                          <td className="border p-2">{c.reviewDate || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))

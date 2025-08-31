@@ -6,28 +6,32 @@ import { PlusCircle, ClipboardList, CheckCircle } from "lucide-react";
 
 export default function AssessmentsPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="px-3 sm:px-4 md:px-6 py-4 space-y-6">
       {/* Page Heading */}
       <div>
-        <h2 className="text-2xl font-bold">Assessments</h2>
-        <p className="text-muted-foreground">
+        <h2 className="text-2xl md:text-3xl font-bold">Assessments</h2>
+        <p className="text-sm md:text-base text-muted-foreground">
           Manage compliance assessments across all frameworks and divisions.
         </p>
       </div>
 
-      {/* 3 Cards Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Cards Grid: always at least 2 columns; 3 on md+ */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 min-w-0">
         {/* Create New */}
-        <Link href="/admin/assessments/createNewAssessment">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-primary">
+        <Link href="/admin/assessments/createNewAssessment" className="min-w-0">
+          <Card
+            className="h-full bg-white border border-primary
+                       hover:scale-105 hover:shadow-2xl
+                       transform transition-transform duration-300 ease-in-out cursor-pointer"
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base font-semibold">
                 <PlusCircle className="h-5 w-5 text-primary" />
-                Create New Assessment
+                <span className="truncate">Create New Assessment</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Start a new compliance cycle by selecting a framework and division.
               </p>
             </CardContent>
@@ -35,16 +39,20 @@ export default function AssessmentsPage() {
         </Link>
 
         {/* Current */}
-        <Link href="/admin/assessments/current">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-primary">
+        <Link href="/admin/assessments/current" className="min-w-0">
+          <Card
+            className="h-full bg-white border border-primary
+                       hover:scale-105 hover:shadow-2xl
+                       transform transition-transform duration-300 ease-in-out cursor-pointer"
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base font-semibold">
                 <ClipboardList className="h-5 w-5 text-primary" />
-                Current Assessments
+                <span className="truncate">Current Assessments</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 View and manage ongoing assessments with pending tasks.
               </p>
             </CardContent>
@@ -52,16 +60,20 @@ export default function AssessmentsPage() {
         </Link>
 
         {/* Completed */}
-        <Link href="/admin/assessments/completed">
-          <Card className="hover:scale-105 hover:shadow-lg transition cursor-pointer border border-green-600">
+        <Link href="/admin/assessments/completed" className="min-w-0">
+          <Card
+            className="h-full bg-white border border-green-600
+                       hover:scale-105 hover:shadow-2xl
+                       transform transition-transform duration-300 ease-in-out cursor-pointer"
+          >
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base font-semibold">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                Completed Assessments
+                <span className="truncate">Completed Assessments</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Review completed assessments and generate reports for auditing.
               </p>
             </CardContent>
