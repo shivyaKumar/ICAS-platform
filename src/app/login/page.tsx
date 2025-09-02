@@ -66,9 +66,6 @@ export default function LoginPage() {
           <p className="text-yellow-200 mt-3 text-lg animate-fadeIn">
             Compliance Management System
           </p>
-          <p className="text-yellow-200 mt-1 text-lg animate-fadeIn">
-            Access your compliance dashboard to view security frameworks, monitor risks, and track audit processes.
-          </p>
         </div>
       </div>
 
@@ -92,9 +89,6 @@ export default function LoginPage() {
               />
             </svg>
             <h2 className="text-2xl font-bold text-gray-800">Compliance Portal</h2>
-            <p className="text-sm text-gray-500">
-              Sign in to access the compliance management system
-            </p>
           </div>
 
           {/* Show error if login fails */}
