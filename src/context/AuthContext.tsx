@@ -1,49 +1,55 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+type User = {
+  id: string;
+  name: string;
+  role: "admin" | "staff";
+};
+
 type AuthContextType = {
-  role: string | null;
-  login: (role: string) => void;
+  user: User | null;
+  login: (user: User) => void;
   logout: () => void;
   isLoading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
-  role: null,
+  user: null,
   login: () => {},
   logout: () => {},
   isLoading: true,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [role, setRole] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true); // NEW
   const router = useRouter();
 
-  // Load role from localStorage on first render
+  // Load user from localStorage on first render
   useEffect(() => {
-    const storedRole = localStorage.getItem("role");
-    if (storedRole) {
-      setRole(storedRole);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
     setIsLoading(false); // once checked, stop loading
   }, []);
 
-  const login = (newRole: string) => {
-    localStorage.setItem("role", newRole);
-    setRole(newRole);
+  const login = (newUser: User) => {
+    localStorage.setItem("user", JSON.stringify(newUser));
+    setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem("role");
-    setRole(null);
+    localStorage.removeItem("user");
+    setUser(null);
     router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ role, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {isLoading ? (
         <div className="flex items-center justify-center h-screen">Loading...</div>
       ) : (
@@ -53,4 +59,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+};

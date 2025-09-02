@@ -1,280 +1,238 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input"; // reusable Input
-import { Label } from "@/components/ui/label"; // reusable Label
+import { Button } from "@/components/ui/button";
 
-export default function CurrentAssessmentsPage() {
-  // Mock data
-  const [currentAssessments, setCurrentAssessments] = useState([
-    {
-      id: 1,
-      framework: "ISO 27001",
-      division: "Finance",
-      date: "2025-09-12",
-      status: "Active",
-      controls: [
-        {
-          id: "A.5.1.1",
-          name: "Information Security Policy",
-          status: "Pending",
-          implementation: "In Progress",
-          gapDescription: "Policy needs review",
-          assignedTo: "Alice",
-          evidence: "View File",
-          review: "",
-          comments: "",
-          reviewDate: "",
-        },
-        {
-          id: "A.9.2.1",
-          name: "Access Control",
-          status: "Pending",
-          implementation: "N/A",
-          gapDescription: "Policy not updated",
-          assignedTo: "Bob",
-          evidence: "View File",
-          review: "",
-          comments: "",
-          reviewDate: "",
-        },
-      ],
-    },
-  ]);
+/* ---------- Types (only two statuses now) ---------- */
+type ReviewDecision = "" | "Approved" | "ChangesRequested" | "Rejected";
+type ComplianceStatus = "Pending" | "Compliant" | "NonCompliant";
+type AssessmentStatus = "InProgress" | "Submitted";
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [completedAssessments, setCompletedAssessments] = useState<any[]>([]);
+type Control = {
+  id: string;
+  name: string;
+  status: ComplianceStatus;
+  implementation: string;
+  gapDescription: string;
+  assignedTo: string;
+  evidence: string;
+  review: ReviewDecision;
+  comments: string;
+  reviewDate: string;
+};
 
-  // Hydrate completed list from localStorage on first load
+type Assessment = {
+  id: number;
+  framework: string;
+  division: string;
+  date: string;           // shown as plain text (no brackets)
+  status: AssessmentStatus;
+  controls: Control[];
+};
+
+/* ---------- Helpers (no any) ---------- */
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+function g<T = unknown>(o: unknown, k: string): T | undefined {
+  return isRecord(o) ? (o as Record<string, unknown>)[k] as T : undefined;
+}
+function s(v: unknown, f = ""): string {
+  return typeof v === "string" ? v : f;
+}
+function n(v: unknown, f = 0): number {
+  const x = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(x) ? x : f;
+}
+
+/* Map backend status names to the two we expose in UI */
+function normalizeStatus(raw: string): AssessmentStatus {
+  if (raw === "Submitted") return "Submitted";
+  // treat anything else that means “still being worked on” as InProgress
+  // (e.g. "Active", "Draft", etc.)
+  return "InProgress";
+}
+
+/* ---------- Mappers ---------- */
+function controlFromUnknown(u: unknown, j: number): Control {
+  const id = s(g<string>(u, "id"), `c${j + 1}`);
+  return {
+    id,
+    name: s(g<string>(u, "name")),
+    status: ((): ComplianceStatus => {
+      const x = s(g<string>(u, "status"));
+      return x === "Compliant" || x === "NonCompliant" || x === "Pending" ? x : "Pending";
+    })(),
+    implementation: s(g<string>(u, "implementation")),
+    gapDescription: s(g<string>(u, "gapDescription")),
+    assignedTo: s(g<string>(u, "assignedTo")),
+    evidence: s(g<string>(u, "evidence")),
+    review: ((): ReviewDecision => {
+      const x = s(g<string>(u, "review"));
+      return x === "" || x === "Approved" || x === "ChangesRequested" || x === "Rejected" ? x : "";
+    })(),
+    comments: s(g<string>(u, "comments")),
+    reviewDate: s(g<string>(u, "reviewDate")),
+  };
+}
+
+function assessmentFromUnknown(u: unknown, i: number): Assessment {
+  const rawDate = s(g<string>(u, "date"));
+  const date = rawDate || new Date().toISOString().slice(0, 10); // ensure no empty "()"
+  const rawStatus = s(g<string>(u, "status"), "InProgress");
+  const controlsRaw = g<unknown>(u, "controls");
+
+  return {
+    id: n(g<number>(u, "id"), i + 1),
+    framework: s(g<string>(u, "framework")),
+    division: s(g<string>(u, "division")),
+    date,
+    status: normalizeStatus(rawStatus),
+    controls: Array.isArray(controlsRaw) ? controlsRaw.map((c, j) => controlFromUnknown(c, j)) : [],
+  };
+}
+
+/* ---------- localStorage helpers ---------- */
+const LS_CURRENT = "current_assessments";
+function readCurrentFromStorage(): Assessment[] {
+  try {
+    const raw = localStorage.getItem(LS_CURRENT);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((a, i) => assessmentFromUnknown(a, i));
+  } catch {
+    return [];
+  }
+}
+
+/* ---------- UI helpers ---------- */
+function StatusPill({ status }: { status: AssessmentStatus }) {
+  if (status === "InProgress") {
+    return <Badge className="bg-yellow-100 text-yellow-800">In&nbsp;Progress</Badge>;
+  }
+  return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
+}
+
+/* ---------- Component ---------- */
+export default function AdminCurrentList() {
+  const [items, setItems] = useState<Assessment[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    try {
-      const existing = JSON.parse(
-        localStorage.getItem("completed_assessments") || "[]"
-      );
-      if (Array.isArray(existing) && existing.length) {
-        setCompletedAssessments(existing);
-      }
-    } catch {
-      /* ignore JSON errors */
+    const ctrl = new AbortController();
+
+    async function fetchList(url: string) {
+      const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+      if (!res.ok) return [] as unknown[];
+      const data: unknown = await res.json();
+      return Array.isArray(data) ? data : [];
     }
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Try common server filters; normalize to 2 statuses
+        const results: unknown[] = [
+          ...(await fetchList("/api/assessments?scope=current")),   // if supported
+          ...(await fetchList("/api/assessments?status=Active")),   // map to InProgress
+          ...(await fetchList("/api/assessments?status=Submitted")),
+        ];
+
+        const mapped = results.map(assessmentFromUnknown);
+        // dedupe by id
+        const dedup = Array.from(new Map(mapped.map(a => [String(a.id), a])).values());
+
+        if (dedup.length) {
+          try { localStorage.setItem(LS_CURRENT, JSON.stringify(dedup)); } catch {}
+          setItems(dedup);
+        } else {
+          setItems(readCurrentFromStorage());
+        }
+      } catch (e) {
+        if (!(e instanceof DOMException && e.name === "AbortError")) {
+          setError("Failed to load assessments");
+          setItems(readCurrentFromStorage());
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === LS_CURRENT) setItems(readCurrentFromStorage());
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      ctrl.abort();
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
-  // Handle updates
-  const handleUpdate = (
-    assessmentId: number,
-    ctrlId: string,
-    field: string,
-    value: string
-  ) => {
-    setCurrentAssessments((prev) =>
-      prev.map((a) =>
-        a.id === assessmentId
-          ? {
-              ...a,
-              controls: a.controls.map((c) =>
-                c.id === ctrlId ? { ...c, [field]: value } : c
-              ),
-            }
-          : a
-      )
-    );
-  };
-
-  // Save Review
-  const handleSaveReview = (assessmentId: number) => {
-    const updated = currentAssessments.find((a) => a.id === assessmentId);
-    console.log("Saving review to DB:", updated);
-    alert(`Review for ${updated?.framework} - ${updated?.division} saved!`);
-  };
-
-  // Mark as Completed (+ persist to localStorage for Completed page)
-  const handleMarkCompleted = (assessmentId: number) => {
-    const completed = currentAssessments.find((a) => a.id === assessmentId);
-    if (!completed) return;
-
-    // Move in UI
-    const completedItem = { ...completed, status: "Completed" as const };
-    setCompletedAssessments((prev) => [completedItem, ...prev]);
-    setCurrentAssessments((prev) => prev.filter((a) => a.id !== assessmentId));
-
-    // Persist
-    try {
-      const existing = JSON.parse(
-        localStorage.getItem("completed_assessments") || "[]"
-      );
-      const next = Array.isArray(existing) ? [completedItem, ...existing] : [completedItem];
-      localStorage.setItem("completed_assessments", JSON.stringify(next));
-    } catch {
-      /* ignore JSON errors */
-    }
-
-    alert(`${completed.framework} - ${completed.division} moved to Completed!`);
-  };
-
   return (
-    <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold">Current Assessments (Admin)</h2>
-
-      {currentAssessments.map((assessment) => (
-        <div
-          key={assessment.id}
-          className="border rounded-lg shadow p-4 bg-white"
-        >
-          <h3 className="font-semibold text-lg mb-2">
-            {assessment.framework} — {assessment.division} ({assessment.date})
-          </h3>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border text-sm min-w-[1000px]">
-              <thead className="bg-black text-white">
+    <div className="p-6">
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle className="text-2xl">Current Assessments</CardTitle>
+          <p className="text-sm text-gray-600">
+            Open an assessment to review controls and take action.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left">
                 <tr>
-                  <th className="border p-2">ID</th>
-                  <th className="border p-2">Control</th>
-                  <th className="border p-2">Compliance Status</th>
-                  <th className="border p-2">Implementation</th>
-                  <th className="border p-2">Gap Description</th>
-                  <th className="border p-2">Assigned To</th>
-                  <th className="border p-2">Evidence</th>
-                  <th className="border p-2">Review</th>
-                  <th className="border p-2">Comments</th>
-                  <th className="border p-2">Review Date</th>
+                  <th className="px-5 py-3">Framework</th>
+                  <th className="px-5 py-3">Division</th>
+                  <th className="px-5 py-3">Created</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {assessment.controls.map((ctrl) => (
-                  <tr key={ctrl.id} className="border-b">
-                    <td className="border p-2">{ctrl.id}</td>
-                    <td className="border p-2">{ctrl.name}</td>
-
-                    {/* Badge */}
-                    <td className="border p-2">
-                      {ctrl.status === "Pending" && (
-                        <Badge variant="secondary">Pending</Badge>
-                      )}
-                      {ctrl.status === "Approved" && (
-                        <Badge variant="primary">Approved</Badge>
-                      )}
-                      {ctrl.status === "Rejected" && (
-                        <Badge variant="destructive">Rejected</Badge>
-                      )}
-                    </td>
-
-                    <td className="border p-2">{ctrl.implementation}</td>
-                    <td className="border p-2">{ctrl.gapDescription}</td>
-                    <td className="border p-2">{ctrl.assignedTo}</td>
-                    <td className="border p-2 text-blue-600 underline cursor-pointer">
-                      {ctrl.evidence}
-                    </td>
-
-                    {/* Review Dropdown */}
-                    <td className="border p-2">
-                      <Label htmlFor={`review-${ctrl.id}`} className="sr-only">
-                        Review
-                      </Label>
-                      <select
-                        id={`review-${ctrl.id}`}
-                        value={ctrl.review}
-                        onChange={(e) =>
-                          handleUpdate(
-                            assessment.id,
-                            ctrl.id,
-                            "review",
-                            e.target.value
-                          )
-                        }
-                        className="border p-1 rounded"
-                      >
-                        <option value="">-- Select --</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                        <option value="Request Change">Request Change</option>
-                      </select>
-                    </td>
-
-                    {/* Comments */}
-                    <td className="border p-2">
-                      <Label htmlFor={`comments-${ctrl.id}`} className="sr-only">
-                        Comments
-                      </Label>
-                      <Input
-                        id={`comments-${ctrl.id}`}
-                        value={ctrl.comments}
-                        onChange={(e) =>
-                          handleUpdate(
-                            assessment.id,
-                            ctrl.id,
-                            "comments",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Add comments"
-                      />
-                    </td>
-
-                    {/* Review Date */}
-                    <td className="border p-2">
-                      <Label htmlFor={`date-${ctrl.id}`} className="sr-only">
-                        Review Date
-                      </Label>
-                      <Input
-                        id={`date-${ctrl.id}`}
-                        type="date"
-                        value={ctrl.reviewDate}
-                        onChange={(e) =>
-                          handleUpdate(
-                            assessment.id,
-                            ctrl.id,
-                            "reviewDate",
-                            e.target.value
-                          )
-                        }
-                      />
+                {loading && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-gray-600">Loading…</td>
+                  </tr>
+                )}
+                {!loading && error && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-red-600">{error}</td>
+                  </tr>
+                )}
+                {!loading && !error && items.map((a) => (
+                  <tr key={a.id} className="border-t">
+                    <td className="px-5 py-3 font-medium">{a.framework}</td>
+                    <td className="px-5 py-3">{a.division}</td>
+                    <td className="px-5 py-3">{a.date}</td>
+                    <td className="px-5 py-3"><StatusPill status={a.status} /></td>
+                    <td className="px-5 py-3">
+                      <Button asChild size="sm">
+                        <Link href={`/admin/assessments/current/${encodeURIComponent(String(a.id))}`}>
+                          Open
+                        </Link>
+                      </Button>
                     </td>
                   </tr>
                 ))}
+                {!loading && !error && items.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-gray-600">No current assessments.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4 mt-4">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleSaveReview(assessment.id)}
-            >
-              Save Review
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => handleMarkCompleted(assessment.id)}
-            >
-              Mark as Completed
-            </Button>
-          </div>
-        </div>
-      ))}
-
-      {/* Completed Assessments */}
-      {completedAssessments.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-xl font-bold">Completed Assessments</h2>
-          <ul className="list-disc pl-6 mt-2">
-            {completedAssessments.map((a) => (
-              <li key={a.id}>
-                {a.framework} — {a.division} ({a.date})
-                <Badge variant="primary" className="ml-2">
-                  Completed
-                </Badge>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,30 +1,26 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext"; // adjust path if needed
+import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function ProtectedRoute({
   children,
+  allowedRoles,
 }: {
   children: React.ReactNode;
+  allowedRoles: ("admin" | "staff")[];
 }) {
-  const { role, isLoading } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !role) {
-      router.replace("/login");
+    if (!user || !allowedRoles.includes(user.role)) {
+      router.push("/login");
     }
-  }, [isLoading, role, router]);
+  }, [user, allowedRoles, router]);
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  }
-
-  if (!role) {
-    return null; // prevent flicker while redirecting
-  }
+  if (!user || !allowedRoles.includes(user.role)) return null;
 
   return <>{children}</>;
 }

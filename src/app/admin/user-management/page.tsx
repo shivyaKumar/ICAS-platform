@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,9 +189,8 @@ export default function UserManagementPage() {
               aria-label="Close add user form"
               onClick={() => setShowAddForm(false)}
             >
-              ×
+              {'\u00D7'}
             </button>
-
             <CardHeader className="pb-2">
               <CardTitle className="text-lg md:text-xl">Add New User</CardTitle>
               <p className="text-xs text-muted-foreground">All fields are required.</p>
@@ -297,7 +296,7 @@ export default function UserManagementPage() {
                 </h3>
                 <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                 <p className="text-xs text-muted-foreground">
-                  {user.division} • {user.role}
+                  {user.division} · {user.role}
                 </p>
               </div>
             </CardContent>
@@ -311,3 +310,6 @@ export default function UserManagementPage() {
     </div>
   );
 }
+
+
+

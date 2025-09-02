@@ -1,30 +1,16 @@
 // src/app/api/login/route.ts
-import { NextResponse } from "next/server";
-import { verifyLogin } from "@/lib/auth";
 
+// Example pseudo-code for login
 export async function POST(req: Request) {
-  try {
-    const { email, password } = await req.json();
+  const { username, password } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { success: false, message: "Email and password are required" },
-        { status: 400 }
-      );
-    }
-
-    const result = await verifyLogin(email, password);
-
-    if (result.success) {
-      return NextResponse.json(result, { status: 200 });
-    } else {
-      return NextResponse.json(result, { status: 401 });
-    }
-  } catch (err) {
-    console.error("Login API error:", err);
-    return NextResponse.json(
-      { success: false, message: "Internal server error" },
-      { status: 500 }
-    );
+  // Example: check credentials
+  if (username === "admin" && password === "adminpass") {
+    return Response.json({ id: "1", name: "Admin User", role: "admin" });
   }
+  if (username === "staff" && password === "staffpass") {
+    return Response.json({ id: "2", name: "Staff User", role: "staff" });
+  }
+
+  return Response.json({ error: "Invalid credentials" }, { status: 401 });
 }
