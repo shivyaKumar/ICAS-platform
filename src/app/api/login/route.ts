@@ -2,6 +2,7 @@
 export const runtime = "nodejs";
 
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
     const hours = Number(process.env.JWT_EXPIRES_HOURS ?? 3);
     const expires = new Date(Date.now() + hours * 3600 * 1000);
 
+    /*
     cookies().set({
       name: process.env.JWT_COOKIE ?? "icas_auth",
       value: data.token,
@@ -60,6 +62,20 @@ export async function POST(req: Request) {
       expires,
       path: "/",
     });
+    */
+
+  const cookieStore = await cookies();
+  cookieStore.set(
+    process.env.JWT_COOKIE ?? "icas_auth",
+    data.token,
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      expires,
+      path: "/",
+    }
+  );
 
     return Response.json({ success: true, role: data.role ?? "User" });
   } catch (e: any) {
