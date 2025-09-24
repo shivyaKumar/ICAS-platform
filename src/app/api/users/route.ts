@@ -2,35 +2,50 @@ import { cookies } from "next/headers";
 
 const BASE = "http://127.0.0.1:5275";
 
-// Get all users
+// ✅ Get all users
 export async function GET() {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
     const r = await fetch(`${BASE}/api/users`, {
       headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
+      cache: "no-store", // always fresh
     });
-    return new Response(await r.text(), { status: r.status });
+
+    const text = await r.text();
+    return new Response(text, { status: r.status });
   } catch (err) {
     console.error("GET Users error:", err);
     return new Response("Failed to fetch users", { status: 500 });
   }
 }
 
-// Create new user
+// ✅ Create user
 export async function POST(req: Request) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const body = await req.text();
+    const raw = await req.json();
+
+    const body = {
+      firstName: raw.firstName,
+      lastName: raw.lastName,
+      email: raw.email,
+      divisionId: Number(raw.divisionId),
+      role: raw.role || "Staff", // default if missing
+    };
+
     const r = await fetch(`${BASE}/api/users`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body,
+      body: JSON.stringify(body),
     });
-    return new Response(await r.text(), { status: r.status });
+
+    const text = await r.text();
+    console.log("Create user response:", r.status, text);
+
+    return new Response(text, { status: r.status });
   } catch (err) {
     console.error("POST User error:", err);
     return new Response("Failed to create user", { status: 500 });

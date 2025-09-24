@@ -3,10 +3,12 @@ import { cookies } from "next/headers";
 const BASE = "http://127.0.0.1:5275";
 
 // Get user by ID
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const r = await fetch(`${BASE}/api/users/${params.id}`, {
+    const { id } = await context.params; // await params
+
+    const r = await fetch(`${BASE}/api/users/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
@@ -18,17 +20,21 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 // Update user by ID
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const body = await req.text();
-    const r = await fetch(`${BASE}/api/users/${params.id}`, {
+    const { id } = await context.params; //await params
+    const body = await req.json(); // parse JSON
+
+    const r = await fetch(`${BASE}/api/users/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}` },
-      body,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body), //serialize JSON
     });
+
     return new Response(await r.text(), { status: r.status });
   } catch (err) {
     console.error("PUT User error:", err);
@@ -37,13 +43,21 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 // Delete user by ID
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const r = await fetch(`${BASE}/api/users/${params.id}`, {
+    const { id } = await context.params; // await params
+
+    const r = await fetch(`${BASE}/api/users/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    if (r.status === 204) {
+      // handle no-content response properly
+      return new Response(null, { status: 204 });
+    }
+
     return new Response(await r.text(), { status: r.status });
   } catch (err) {
     console.error("DELETE User error:", err);

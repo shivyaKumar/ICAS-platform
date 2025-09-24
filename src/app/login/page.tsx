@@ -4,6 +4,8 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react"; 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
+
 
 export default function LoginPage() {
   // --------------------------
@@ -11,7 +13,8 @@ export default function LoginPage() {
   // --------------------------
   const [email, setEmail] = useState("");        
   const [password, setPassword] = useState("");  
-  const [error, setError] = useState("");        
+  const [error, setError] = useState(""); 
+  const [showPassword, setShowPassword] = useState(false);       
   const router = useRouter();                     
 
 
@@ -19,29 +22,47 @@ export default function LoginPage() {
   // Handle login form submission
   // --------------------------
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); 
+  e.preventDefault();
 
-    // Call login API route with email & password
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
 
-    const res = await response.json();
+    if (!response.ok) {
+      let errMsg = "Invalid email or password.";
 
-    if (res.success) {
-      // Save user role in localStorage (for session simulation)
-      localStorage.setItem("role", res.role ?? "");
+      try {
+        const errData = await response.json();
+        // Force only the message string
+        if (errData?.message) {
+          errMsg = errData.message;
+        } else if (errData?.title) {
+          errMsg = errData.title;
+        } else if (typeof errData === "string") {
+          errMsg = errData;
+        }
+      } catch {
+        // ignore parse errors
+      }
 
-      // Redirect to dashboard
-      router.push("/admin/dashboard");
-    } else {
-      // Show error message
-      setError(res.message ?? "An unknown error occurred.");
+      setError(errMsg); // always a plain string
+      return;
     }
-  };
 
+    const res = await response.json();
+    if (res.success) {
+      router.push("/post-login");
+    } else {
+      setError("Invalid email or password."); // fallback
+    }
+  } catch (err) {
+    console.error("Login error", err);
+    setError("Something went wrong. Please try again.");
+  }
+};
 
   return (
     <div className="flex min-h-screen">
@@ -93,7 +114,16 @@ export default function LoginPage() {
 
           {/* Show error if login fails */}
           {error && (
-            <p className="text-red-500 text-sm mb-3">{error}</p>
+            <div className="mb-4 inline-flex items-center rounded-md bg-red-50 border border-red-300 px-3 py-2 text-sm text-red-700">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => setError("")}
+                className="ml-2 text-red-500 hover:text-red-700 font-bold"
+              >
+                ✕
+              </button>
+            </div>
           )}
 
           {/* Login Form */}
@@ -116,16 +146,24 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-gray-700 text-left">
                 Password
               </label>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-yellow-400 focus:border-yellow-400 text-sm text-gray-800 placeholder-gray-400"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-yellow-400 focus:border-yellow-400 text-sm text-gray-800 placeholder-gray-400 pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-black"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
-
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center space-x-2 text-gray-600">
                 <input type="checkbox" className="h-4 w-4 text-yellow-500" />

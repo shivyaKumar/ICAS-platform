@@ -1,40 +1,69 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-export default function AdminHeader({
+export default function Header({
   onToggleSidebar,
 }: {
   onToggleSidebar: () => void;
 }) {
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
-  // Close the small search panel on Escape
+  // Load logged-in user info
   useEffect(() => {
-    if (!mobileSearchOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileSearchOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mobileSearchOpen]);
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/me", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUserEmail(data.email);
+        }
+      } catch (err) {
+        console.error("Failed to load user:", err);
+      }
+    }
+    fetchUser();
+  }, []);
 
-  // Close if clicking outside the panel
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      router.push("/login"); // SPA-friendly redirect
+    }
+  };
+
+  const userInitials = userEmail ? userEmail.charAt(0).toUpperCase() : "?";
+
+  // Close dropdown if clicking outside
   useEffect(() => {
-    if (!mobileSearchOpen) return;
     const onClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setMobileSearchOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
-  }, [mobileSearchOpen]);
+  }, []);
 
   return (
     <header className="relative flex items-center justify-between bg-primary border-b px-3 md:px-6 py-3 md:py-4 shadow-md">
-      {/* Left: Hamburger + Logo + Branding */}
+      {/* Left: Sidebar toggle + Logo */}
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
         <button
           className="md:hidden p-2 -ml-1 rounded hover:bg-black/5"
@@ -62,61 +91,36 @@ export default function AdminHeader({
         </div>
       </div>
 
-      {/* Right: Search + Avatar */}
-      <div className="flex items-center gap-3 md:gap-5 shrink-0">
-        {/* Desktop search (inline) */}
-        <div className="relative hidden md:block min-w-[160px] lg:min-w-[220px]">
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full pl-9 pr-3 py-2 bg-gray-100 border border-gray-300 rounded-lg 
-                       text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
-          />
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-        </div>
-
-        {/* Mobile search icon (opens compact panel) */}
+      {/* Right: User Dropdown */}
+      <div className="relative" ref={dropdownRef}>
         <button
-          className="md:hidden p-2 rounded hover:bg-black/5"
-          aria-label="Open search"
-          onClick={() => setMobileSearchOpen((v) => !v)}
+          className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-black/20 transition"
+          onClick={() => setDropdownOpen((prev) => !prev)}
         >
-          <Search className="h-5 w-5 text-black" />
+          <span className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-gray-800 text-white font-semibold">
+            {userInitials}
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 text-gray-700 transition-transform ${
+              dropdownOpen ? "rotate-180" : ""
+            }`}
+          />
         </button>
 
-        {/* Avatar */}
-        <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gray-800 
-                        flex items-center justify-center text-white font-semibold cursor-pointer 
-                        hover:opacity-90 transition">
-          N
-        </div>
-
-        {/* Mobile compact search panel (no dark overlay) */}
-        {mobileSearchOpen && (
+        {dropdownOpen && (
           <div
-            ref={panelRef}
-            className="absolute right-3 left-3 top-full mt-2 md:hidden bg-white/95 backdrop-blur 
-                       border border-gray-200 shadow-xl rounded-xl p-2"
+            className="absolute right-0 mt-2 max-w-xs bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+            style={{ minWidth: "12rem" }}
           >
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Search…"
-                  className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-300 rounded-lg 
-                             text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
-                />
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              </div>
-              <button
-                className="p-2 rounded hover:bg-gray-100"
-                aria-label="Close search"
-                onClick={() => setMobileSearchOpen(false)}
-              >
-                <X className="h-4 w-4 text-gray-700" />
-              </button>
+            <div className="px-4 py-2 text-sm text-gray-700 border-b break-words">
+              {userEmail ?? "Loading..."}
             </div>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
           </div>
         )}
       </div>
