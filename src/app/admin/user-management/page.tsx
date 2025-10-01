@@ -119,9 +119,15 @@ export default function UserManagementPage() {
         await Promise.all([bRes.json(), dRes.json(), uRes.json(), rRes.json(), meRes.json()]);
 
       let filteredRoles = rolesData;
-      if (meData.role === "IT Admin") {
+
+      // Fix: correctly extract the first role from array
+      const roleFromApi = Array.isArray(meData.roles) && meData.roles.length > 0
+        ? meData.roles[0]
+        : meData.role || "";
+
+      if (roleFromApi === "IT Admin") {
         filteredRoles = rolesData.filter((r: Role) => r.name !== "IT Admin");
-      } else if (meData.role === "Admin") {
+      } else if (roleFromApi === "Admin") {
         filteredRoles = rolesData.filter((r: Role) => r.name === "Standard User");
       }
 
@@ -129,7 +135,8 @@ export default function UserManagementPage() {
       setDivisions(divisionsData);
       setUsers(usersData);
       setRoles(filteredRoles);
-      setCurrentRole(meData.role);
+      setCurrentRole(roleFromApi); // Now properly sets "Super Admin" or "IT Admin"
+
     } catch (err) {
       console.error("Reload error", err);
       alert("Error refreshing data.");
@@ -371,15 +378,15 @@ export default function UserManagementPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {/* Only SuperAdmin & IT Admin can manage divisions */}
-          {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+          {/* Only Super Admin & IT Admin can manage divisions */}
+          {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
             <Button onClick={() => { setShowAddDivision(true); setEditingDivisionId(null); }}>
               <Layers className="h-4 w-4" /> Add Division
             </Button>
           )}
 
-          {/* Only SuperAdmin & IT Admin can manage branches */}
-          {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+          {/* Only Super Admin & IT Admin can manage branches */}
+          {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
             <Button onClick={() => { setShowAddBranch(true); setEditingBranchId(null); }}>
               <Building2 className="h-4 w-4" /> Add Branch
             </Button>
@@ -412,7 +419,7 @@ export default function UserManagementPage() {
                   <td className="px-4 py-2">{d.name}</td>
                   <td className="px-4 py-2 text-muted-foreground">{d.description || "-"}</td>
                   <td className="px-4 py-2 flex justify-center gap-2">
-                    {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+                    {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
                       <>
                         <Button size="icon" onClick={() => handleEditDivision(d)}>
                           <Edit className="h-4 w-4" />
@@ -469,7 +476,7 @@ export default function UserManagementPage() {
                         <Button size="icon" onClick={() => toggleBranch(b.id)}>
                           {expandedBranches[b.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </Button>
-                        {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+                        {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
                           <>
                             <Button size="icon" onClick={() => handleEditBranch(b)}>
                               <Edit className="h-4 w-4" />
