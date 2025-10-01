@@ -2,13 +2,13 @@ import { cookies } from "next/headers";
 
 const BASE = "http://127.0.0.1:5275";
 
-// ✅ Get all users
+// Get all users
 export async function GET() {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
     const r = await fetch(`${BASE}/api/users`, {
       headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store", // always fresh
+      cache: "no-store",
     });
 
     const text = await r.text();
@@ -19,7 +19,7 @@ export async function GET() {
   }
 }
 
-// ✅ Create user
+// Create user
 export async function POST(req: Request) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
@@ -29,8 +29,8 @@ export async function POST(req: Request) {
       firstName: raw.firstName,
       lastName: raw.lastName,
       email: raw.email,
-      divisionId: Number(raw.divisionId),
-      role: raw.role || "Staff", // default if missing
+      role: raw.role || "Staff",
+      branchId: Number(raw.branchId), // required by BE
     };
 
     const r = await fetch(`${BASE}/api/users`, {

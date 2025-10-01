@@ -6,7 +6,7 @@ const BASE = "http://127.0.0.1:5275";
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params;   // ✅ await params
+    const { id } = await context.params;   //await params
 
     const r = await fetch(`${BASE}/api/branches/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -23,7 +23,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params;   // ✅ await params
+    const { id } = await context.params;   // await params
     const body = await req.text();
 
     const r = await fetch(`${BASE}/api/branches/${id}`, {
@@ -46,7 +46,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params;   // ✅ await params
+    const { id } = await context.params;   // await params
 
     const r = await fetch(`${BASE}/api/branches/${id}`, {
       method: "DELETE",
@@ -54,7 +54,7 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
     });
 
     if (r.status === 204) {
-      // ✅ Handle no-content response properly
+      // Handle no-content response properly
       return new Response(null, { status: 204 });
     }
 

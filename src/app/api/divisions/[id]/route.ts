@@ -63,7 +63,7 @@ export async function DELETE(
     });
 
     if (r.status === 204) {
-      // ✅ Handle empty no-content response
+      //Handle empty no-content response
       return new Response(null, { status: 204 });
     }
 

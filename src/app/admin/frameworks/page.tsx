@@ -12,7 +12,7 @@ export default function FrameworksPage() {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      alert("Only CSV files are allowed.");
+      alert("Only Excel files are allowed.");
       return;
     }
 
@@ -59,11 +59,11 @@ export default function FrameworksPage() {
           />
 
           <Button variant="primary" size="sm" onClick={handleUploadClick}>
-            Upload CSV
+            Upload Excel
           </Button>
 
           <p className="text-xs md:text-sm text-gray-600 text-center max-w-md">
-            Only CSV files are supported for uploading frameworks.  
+            Only Excel files are supported for uploading frameworks.  
             Download the sample template before uploading.
           </p>
         </CardContent>

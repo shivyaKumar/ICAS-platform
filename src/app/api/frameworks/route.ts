@@ -13,34 +13,29 @@ const MOCK: Framework[] = [
   {
     id: "iso27001",
     name: "ISO 27001",
-    percent: 42,
+    percent: 0,
     divisions: [
-      { name: "Finance", percent: 48 },
-      { name: "HR",      percent: 37 },
-      { name: "IT",      percent: 45 },
-      { name: "Ops",     percent: 38 },
+      { name: "MH", percent: 0 },
+      { name: "Carpenters Motors",      percent: 0 },
     ],
   },
   {
     id: "nistcsf",
     name: "NIST CSF",
-    percent: 39,
+    percent: 0,
     divisions: [
-      { name: "Finance", percent: 36 },
-      { name: "HR",      percent: 32 },
-      { name: "IT",      percent: 44 },
-      { name: "Ops",     percent: 41 },
+      { name: "MH", percent: 0 },
+      { name: "Carpenters Motors",      percent: 0 },
+
     ],
   },
   {
     id: "gdpr",
     name: "GDPR",
-    percent: 33,
+    percent: 0,
     divisions: [
-      { name: "Finance", percent: 31 },
-      { name: "HR",      percent: 35 },
-      { name: "IT",      percent: 30 },
-      { name: "Ops",     percent: 36 },
+      { name: "MH", percent: 0 },
+      { name: "Carpenters Motors",      percent: 0 },
     ],
   },
 ];

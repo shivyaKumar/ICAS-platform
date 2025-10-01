@@ -12,7 +12,7 @@ type Status = "Assigned" | "Changes Requested" | "Submitted" | "Completed" | str
 type Assessment = {
   id: string;
   framework: string;
-  division: string;
+  branch: string;   // ✅ now branch instead of division
   status: Status;
 };
 
@@ -24,10 +24,10 @@ function str(v: unknown, fb = ""): string {
   return typeof v === "string" ? v : fb;
 }
 
-/* Optional local filter by division */
-function getLocalDivision(): string | null {
+/* Optional local filter by branch */
+function getLocalBranch(): string | null {
   if (typeof window === "undefined") return null;
-  const v = window.localStorage.getItem("user_division");
+  const v = window.localStorage.getItem("user_branch");
   return v && v.trim().length > 0 ? v.trim() : null;
 }
 
@@ -49,27 +49,27 @@ export default function StaffMyTasksPage() {
 
         if (useMock) {
           const mock: Assessment[] = [
-            { id: "A-101", framework: "ISO 27001", division: "Finance", status: "Assigned" },
-            { id: "A-102", framework: "NIST CSF", division: "Finance", status: "Changes Requested" },
-            { id: "A-201", framework: "GDPR", division: "HR", status: "Assigned" },
+            { id: "A-101", framework: "ISO 27001", branch: "Max Value", status: "Assigned" },
+            { id: "A-102", framework: "NIST CSF", branch: "Max Value", status: "Changes Requested" },
+            { id: "A-201", framework: "GDPR", branch: "Superfresh", status: "Assigned" },
           ];
           if (!cancelled) setAssessments(mock);
           return;
         }
 
         const base = apiBase.replace(/\/+$/, "");
-        const url = `${base}/assessments?divisionId=me&activeOnly=true`;
+        const url = `${base}/assessments?branchId=me&activeOnly=true`; // branchId instead of divisionId
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`Failed to load (${res.status})`);
 
         const raw: unknown = await res.json();
         const items: Assessment[] = Array.isArray(raw)
           ? raw.map((a, i) => {
-              if (!isRecord(a)) return { id: String(i + 1), framework: "", division: "", status: "Assigned" };
+              if (!isRecord(a)) return { id: String(i + 1), framework: "", branch: "", status: "Assigned" };
               return {
                 id: str(a.id, String(i + 1)),
                 framework: str(a.frameworkName ?? a.framework ?? a.name),
-                division: str(a.divisionName ?? a.division ?? a.department),
+                branch: str(a.branchName ?? a.branch),   //pick branchName
                 status: str(a.status, "Assigned"),
               };
             })
@@ -94,11 +94,11 @@ export default function StaffMyTasksPage() {
     [assessments]
   );
 
-  const myDivision = getLocalDivision();
+  const myBranch = getLocalBranch();
   const mine = useMemo(() => {
-    if (!myDivision) return actionable;
-    return actionable.filter((a) => a.division.toLowerCase() === myDivision.toLowerCase());
-  }, [actionable, myDivision]);
+    if (!myBranch) return actionable;
+    return actionable.filter((a) => a.branch.toLowerCase() === myBranch.toLowerCase());
+  }, [actionable, myBranch]);
 
   const StatusBadge = ({ s }: { s: string }) => {
     switch (s) {
@@ -120,7 +120,7 @@ export default function StaffMyTasksPage() {
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">My Tasks</h1>
         <p className="text-sm md:text-base text-gray-700">
-          Items currently assigned to your division that need your action.
+          Items currently assigned to your branch that need your action.
         </p>
       </div>
 
@@ -141,7 +141,7 @@ export default function StaffMyTasksPage() {
                 <thead className="bg-gray-50 text-left">
                   <tr className="text-gray-700">
                     <th className="px-5 py-3">Framework</th>
-                    <th className="px-5 py-3">Division</th>
+                    <th className="px-5 py-3">Branch</th> 
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3">Action</th>
                   </tr>
@@ -150,7 +150,7 @@ export default function StaffMyTasksPage() {
                   {mine.map((a) => (
                     <tr key={a.id} className="border-t">
                       <td className="px-5 py-3 font-medium">{a.framework}</td>
-                      <td className="px-5 py-3">{a.division}</td>
+                      <td className="px-5 py-3">{a.branch}</td> {/*now branch */}
                       <td className="px-5 py-3"><StatusBadge s={a.status} /></td>
                       <td className="px-5 py-3">
                         <Button asChild size="sm" variant="secondary">

@@ -13,22 +13,8 @@ const metricGradient =
 const getProgressColor = (p: number) =>
   p >= 70 ? "bg-green-500" : p >= 40 ? "bg-yellow-400" : "bg-red-500";
 
-const getFrameworkGradient = (fw: string) => {
-  switch (fw) {
-    case "ISO 27001":
-      return "bg-gradient-to-r from-orange-500 to-amber-900 bg-clip-text text-transparent";
-    case "NIST CSF":
-      return "bg-gradient-to-r from-emerald-500 to-green-900 bg-clip-text text-transparent";
-    case "GDPR":
-      return "bg-gradient-to-r from-purple-500 to-pink-900 bg-clip-text text-transparent";
-    default:
-      return "text-gray-800";
-  }
-};
-
 export default function StaffDashboardPage() {
-  // Top-line metrics (zeros for now; easy to swap with API)
-  const overallCompliance = 0;
+  // Metrics (zeros for now; easy to swap with API)
   const assignedCount = 0;
   const changesRequestedCount = 0;
   const completedCount = 0;
@@ -53,10 +39,9 @@ export default function StaffDashboardPage() {
         </p>
       </div>
 
-      {/* Metric Cards — split Active into two cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 min-w-0">
+      {/* Metric Cards (removed Overall Compliance) */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
         {[
-          { title: "Overall Compliance", value: `${overallCompliance}%` },
           { title: "Assigned Tasks", value: String(assignedCount), subtitle: "Assigned to you" },
           { title: "Changes Requested", value: String(changesRequestedCount), subtitle: "Returned by admin" },
           { title: "Completed", value: String(completedCount), subtitle: "Assessments closed" },
@@ -84,9 +69,7 @@ export default function StaffDashboardPage() {
         ))}
       </div>
 
-      {/* No detail list here — that lives on the My Task page */}
-
-      {/* Framework Compliance — same visual as Admin */}
+      {/* Framework Compliance — match Admin (black text) */}
       <div>
         <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Framework Compliance</h2>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
@@ -98,12 +81,12 @@ export default function StaffDashboardPage() {
                          transform transition-transform duration-300 ease-in-out"
             >
               <CardHeader>
-                <CardTitle className={`text-xl md:text-2xl font-bold ${getFrameworkGradient(fw.name)}`}>
+                <CardTitle className="text-xl md:text-2xl font-bold text-gray-800">
                   {fw.name}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-4xl md:text-5xl font-extrabold ${getFrameworkGradient(fw.name)}`}>
+                <div className="text-4xl md:text-5xl font-extrabold text-gray-800">
                   {fw.percent}%
                 </div>
 

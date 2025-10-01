@@ -21,16 +21,39 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const body = await req.text();
+    const raw = await req.json();
+
+    // Ensure divisionId is always numeric
+    const divisionId = raw.divisionId ? Number(raw.divisionId) : NaN;
+
+    if (!raw.name || isNaN(divisionId)) {
+      return new Response(
+        JSON.stringify({
+          message: "Branch name and valid divisionId are required",
+        }),
+        { status: 400 }
+      );
+    }
+
+    const body = {
+      name: raw.name,
+      location: raw.location || null,
+      divisionId,
+    };
+
     const r = await fetch(`${BASE}/api/branches`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body,
+      body: JSON.stringify(body),
     });
-    return new Response(await r.text(), { status: r.status });
+
+    const text = await r.text();
+    console.log("Create branch response:", r.status, text);
+
+    return new Response(text, { status: r.status });
   } catch (err) {
     console.error("POST Branch error:", err);
     return new Response("Failed to create branch", { status: 500 });

@@ -99,4 +99,10 @@
     @apply h-full;
     overflow-y: auto;
   }
+
+  /* Hide Next.js dev overlay button (the "N") */
+  script[data-nextjs-dev-overlay="true"] {
+    display: none !important;
+  }
+
 }

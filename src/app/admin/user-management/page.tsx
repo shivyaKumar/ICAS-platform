@@ -28,7 +28,6 @@ import {
 interface Division {
   id: number;
   name: string;
-  branchId: number;
   description?: string;
 }
 
@@ -36,6 +35,7 @@ interface Branch {
   id: number;
   name: string;
   location: string;
+  divisionId: number;
 }
 
 interface User {
@@ -58,6 +58,7 @@ export default function UserManagementPage() {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [currentRole, setCurrentRole] = useState<string>("");
 
   const [showAddBranch, setShowAddBranch] = useState(false);
   const [showAddDivision, setShowAddDivision] = useState(false);
@@ -67,78 +68,73 @@ export default function UserManagementPage() {
   const [editingDivisionId, setEditingDivisionId] = useState<number | null>(null);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
 
-  const [newBranch, setNewBranch] = useState({ name: "", location: "" });
+  const [newBranch, setNewBranch] = useState({
+    name: "",
+    location: "",
+    divisionId: 0,
+  });
   const [newDivision, setNewDivision] = useState({
     name: "",
-    branchId: 0,
     description: "",
   });
   const [newUser, setNewUser] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    branchId: 0,
     divisionId: 0,
+    branchId: 0,
     role: "",
   });
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<{
-  title: string;
-  description?: string;
-  onConfirm: () => void;
-}>({ title: "", description: "", onConfirm: () => {} });
-  
-  // Track which division rows are expanded
-  const [expandedDivisions, setExpandedDivisions] = useState<{ [id: number]: boolean }>({});
+    title: string;
+    description?: string;
+    onConfirm: () => void;
+  }>({ title: "", description: "", onConfirm: () => {} });
 
-  const toggleDivision = (id: number) => {
-    setExpandedDivisions(prev => ({ ...prev, [id]: !prev[id] }));
+  // Track expanded branches for showing users
+  const [expandedBranches, setExpandedBranches] = useState<{ [id: number]: boolean }>({});
+
+  const toggleBranch = (id: number) => {
+    setExpandedBranches((prev) => ({ ...prev, [id]: !prev[id] }));
   };
-
 
   /* ---------- Fetch all data ---------- */
   const reloadAll = async () => {
-  try {
-    const [bRes, dRes, uRes, rRes, meRes] = await Promise.all([
-      fetch("/api/branches"),
-      fetch("/api/divisions"),
-      fetch("/api/users"),
-      fetch("/api/roles"),
-      fetch("/api/me", { credentials: "include" }), // fetch current user
-    ]);
-
-    if (!bRes.ok || !dRes.ok || !uRes.ok || !rRes.ok || !meRes.ok) {
-      throw new Error("Failed to reload data");
-    }
-
-    const [branchesData, divisionsData, usersData, rolesData, meData] =
-      await Promise.all([
-        bRes.json(),
-        dRes.json(),
-        uRes.json(),
-        rRes.json(),
-        meRes.json(),
+    try {
+      const [bRes, dRes, uRes, rRes, meRes] = await Promise.all([
+        fetch("/api/branches"),
+        fetch("/api/divisions"),
+        fetch("/api/users"),
+        fetch("/api/roles"),
+        fetch("/api/me", { credentials: "include" }),
       ]);
 
-    // Apply role filtering logic
-    let filteredRoles = rolesData;
+      if (!bRes.ok || !dRes.ok || !uRes.ok || !rRes.ok || !meRes.ok) {
+        throw new Error("Failed to reload data");
+      }
 
-    if (meData.role === "IT Admin") {
-      filteredRoles = rolesData.filter((r: Role) => r.name !== "IT Admin");
-    } else if (meData.role === "Admin") {
-      filteredRoles = rolesData.filter((r: Role) => r.name === "Standard User");
+      const [branchesData, divisionsData, usersData, rolesData, meData] =
+        await Promise.all([bRes.json(), dRes.json(), uRes.json(), rRes.json(), meRes.json()]);
+
+      let filteredRoles = rolesData;
+      if (meData.role === "IT Admin") {
+        filteredRoles = rolesData.filter((r: Role) => r.name !== "IT Admin");
+      } else if (meData.role === "Admin") {
+        filteredRoles = rolesData.filter((r: Role) => r.name === "Standard User");
+      }
+
+      setBranches(branchesData);
+      setDivisions(divisionsData);
+      setUsers(usersData);
+      setRoles(filteredRoles);
+      setCurrentRole(meData.role);
+    } catch (err) {
+      console.error("Reload error", err);
+      alert("Error refreshing data.");
     }
-
-    setBranches(branchesData);
-    setDivisions(divisionsData);
-    setUsers(usersData);
-    setRoles(filteredRoles); // set only allowed roles
-  } catch (err) {
-    console.error("Reload error", err);
-    alert("Error refreshing data.");
-  }
-};
+  };
 
   useEffect(() => {
     reloadAll();
@@ -149,37 +145,46 @@ export default function UserManagementPage() {
     if (!newBranch.name.trim() || !newBranch.location.trim()) {
       return alert("Branch name and location are required");
     }
+    if (!newBranch.divisionId || newBranch.divisionId <= 0) {
+      return alert("You must select a division for this branch");
+    }
 
     try {
+      const body = {
+        name: newBranch.name,
+        location: newBranch.location,
+        divisionId: newBranch.divisionId, // ✅ always send valid int
+      };
+
       if (editingBranchId) {
         await fetch(`/api/branches/${editingBranchId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newBranch),
+          body: JSON.stringify(body),
         });
       } else {
         await fetch(`/api/branches`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newBranch),
+          body: JSON.stringify(body),
         });
       }
+
       await reloadAll();
     } catch (err) {
       console.error("Save branch failed", err);
       alert("Error saving branch");
     }
 
-    setNewBranch({ name: "", location: "" });
+    setNewBranch({ name: "", location: "", divisionId: 0 });
     setEditingBranchId(null);
     setShowAddBranch(false);
   };
 
-  /* ---------- Branch Delete ---------- */
   const handleDeleteBranch = (id: number) => {
     setConfirmConfig({
       title: "Delete Branch?",
-      description: "Deleting this branch will also remove all related divisions and users. This action cannot be undone.",
+      description: "Deleting this branch will also remove related users.",
       onConfirm: async () => {
         try {
           await fetch(`/api/branches/${id}`, { method: "DELETE" });
@@ -194,14 +199,13 @@ export default function UserManagementPage() {
 
   /* ---------- Division Handlers ---------- */
   const handleSaveDivision = async () => {
-    if (!newDivision.name.trim() || !newDivision.branchId) {
-      return alert("Division name and branch are required");
+    if (!newDivision.name.trim()) {
+      return alert("Division name is required");
     }
 
     try {
       const body = {
         name: newDivision.name,
-        branchId: newDivision.branchId,
         description: newDivision.description || null,
       };
 
@@ -222,25 +226,23 @@ export default function UserManagementPage() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Division save failed:", errorText);
         return alert(`Error saving division: ${errorText}`);
       }
 
       await reloadAll();
-      setNewDivision({ name: "", branchId: 0, description: "" });
+      setNewDivision({ name: "", description: "" });
       setEditingDivisionId(null);
       setShowAddDivision(false);
     } catch (err) {
       console.error("Division save failed", err);
-      alert("Unexpected error saving division. See console for details.");
+      alert("Error saving division.");
     }
   };
 
-  /* ---------- Division Delete ---------- */
   const handleDeleteDivision = (id: number) => {
     setConfirmConfig({
       title: "Delete Division?",
-      description: "Deleting this division will also remove all users within it. This action cannot be undone.",
+      description: "Deleting this division will also remove its branches and users.",
       onConfirm: async () => {
         try {
           await fetch(`/api/divisions/${id}`, { method: "DELETE" });
@@ -255,13 +257,7 @@ export default function UserManagementPage() {
 
   /* ---------- User Handlers ---------- */
   const handleSaveUser = async () => {
-    if (
-      !newUser.firstName ||
-      !newUser.lastName ||
-      !newUser.email ||
-      !newUser.divisionId ||
-      !newUser.role
-    ) {
+    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.branchId || !newUser.role) {
       return alert("Fill in all fields.");
     }
 
@@ -270,70 +266,57 @@ export default function UserManagementPage() {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
-        divisionId: newUser.divisionId, //backend expects only divisionId
+        branchId: newUser.branchId,
         role: newUser.role,
       };
 
-      let res;
       if (editingUserId) {
-        res = await fetch(`/api/users/${editingUserId}`, {
+        await fetch(`/api/users/${editingUserId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
       } else {
-        res = await fetch(`/api/users`, {
+        await fetch(`/api/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
       }
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("User save failed:", errorText);
-        return alert(`Error saving user: ${errorText}`);
-      }
-
       await reloadAll();
     } catch (err) {
       console.error("User save failed", err);
-      alert("Unexpected error saving user.");
+      alert("Error saving user.");
     }
 
-    setNewUser({
-      firstName: "",
-      lastName: "",
-      email: "",
-      branchId: 0,
-      divisionId: 0,
-      role: "",
-    });
+    setNewUser({ firstName: "", lastName: "", email: "", divisionId: 0, branchId: 0, role: "" });
     setEditingUserId(null);
     setShowAddUser(false);
   };
 
   const handleDeleteUser = (id: number) => {
-  setConfirmConfig({
-    title: "Delete User?",
-    description: "Deleting this user will permanently remove their account. This action cannot be undone.",
-    onConfirm: async () => {
-      try {
-        await fetch(`/api/users/${id}`, { method: "DELETE" });
-        await reloadAll();
-      } catch {
-        alert("Error deleting user");
-      }
-    },  
-  });
-  setConfirmOpen(true);
-};
+    setConfirmConfig({
+      title: "Delete User?",
+      description: "Deleting this user will permanently remove their account.",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/users/${id}`, { method: "DELETE" });
+          await reloadAll();
+        } catch {
+          alert("Error deleting user");
+        }
+      },
+    });
+    setConfirmOpen(true);
+  };
 
   /* ---------- Edit Handlers ---------- */
   const handleEditBranch = (branch: Branch) => {
     setNewBranch({
       name: branch.name,
       location: branch.location,
+      divisionId: branch.divisionId,
     });
     setEditingBranchId(branch.id);
     setShowAddBranch(true);
@@ -342,7 +325,6 @@ export default function UserManagementPage() {
   const handleEditDivision = (division: Division) => {
     setNewDivision({
       name: division.name,
-      branchId: division.branchId,
       description: division.description || "",
     });
     setEditingDivisionId(division.id);
@@ -350,21 +332,21 @@ export default function UserManagementPage() {
   };
 
   const handleEditUser = (user: User) => {
-  // Look up the division from the user's divisionId
-  const division = divisions.find((d) => d.id === user.divisionId);
+    const branch = branches.find((b) => b.id === user.branchId);
+    const divisionId = branch ? branch.divisionId : 0;
 
-  setNewUser({
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    branchId: division ? division.branchId : 0,  // auto-fill branch from division
-    divisionId: user.divisionId,
-    role: user.role,
-  });
+    setNewUser({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      branchId: user.branchId,
+      divisionId,
+      role: user.role,
+    });
 
-  setEditingUserId(user.id);
-  setShowAddUser(true);
-};
+    setEditingUserId(user.id);
+    setShowAddUser(true);
+  };
 
   /* ---------- UI ---------- */
   return (
@@ -383,92 +365,70 @@ export default function UserManagementPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold leading-tight">
-            User Management
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
           <p className="text-sm text-muted-foreground">
-            Manage branches, divisions, and users
+            Manage divisions, branches, and users
           </p>
         </div>
-
         <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setShowAddBranch(true);
-              setEditingBranchId(null);
-            }}
-          >
-            <Building2 className="h-4 w-4" /> Add Branch
-          </Button>
-          <Button
-            onClick={() => {
-              setShowAddDivision(true);
-              setEditingDivisionId(null);
-            }}
-          >
-            <Layers className="h-4 w-4" /> Add Division
-          </Button>
-          <Button
-            onClick={() => {
-              setShowAddUser(true);
-              setEditingUserId(null);
-            }}
-          >
-            <UserPlus className="h-4 w-4" /> Add User
-          </Button>
+          {/* Only SuperAdmin & IT Admin can manage divisions */}
+          {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+            <Button onClick={() => { setShowAddDivision(true); setEditingDivisionId(null); }}>
+              <Layers className="h-4 w-4" /> Add Division
+            </Button>
+          )}
+
+          {/* Only SuperAdmin & IT Admin can manage branches */}
+          {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+            <Button onClick={() => { setShowAddBranch(true); setEditingBranchId(null); }}>
+              <Building2 className="h-4 w-4" /> Add Branch
+            </Button>
+          )}
+
+          {/* Everyone except Staff can add users */}
+          {currentRole !== "Staff" && (
+            <Button onClick={() => { setShowAddUser(true); setEditingUserId(null); }}>
+              <UserPlus className="h-4 w-4" /> Add User
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Branches Table */}
+      {/* Divisions Table */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Branches</h2>
+        <h2 className="text-xl font-bold">Divisions</h2>
         <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
           <table className="w-full border-collapse">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-4 py-2 text-left text-sm font-semibold">
-                  Branch Name
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-semibold">
-                  Location
-                </th>
-                <th className="px-4 py-2 text-center text-sm font-semibold">
-                  Actions
-                </th>
+                <th className="px-4 py-2 text-left text-sm font-semibold">Division Name</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold">Description</th>
+                <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {branches.map((b) => (
-                <tr key={b.id} className="border-t">
-                  <td className="px-4 py-2">{b.name}</td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {b.location}
-                  </td>
+              {divisions.map((d) => (
+                <tr key={d.id} className="border-t">
+                  <td className="px-4 py-2">{d.name}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{d.description || "-"}</td>
                   <td className="px-4 py-2 flex justify-center gap-2">
-                    <Button
-                      size="icon"
-                      variant="primary"
-                      onClick={() => handleEditBranch(b)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="primary"
-                      onClick={() => handleDeleteBranch(b.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+                      <>
+                        <Button size="icon" onClick={() => handleEditDivision(d)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" onClick={() => handleDeleteDivision(d.id)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
-              {branches.length === 0 && (
+              {divisions.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={3}
-                    className="px-4 py-3 text-center text-sm text-muted-foreground"
-                  >
-                    No branches yet.
+                  <td colSpan={3} className="px-4 py-3 text-center text-sm text-muted-foreground">
+                    No divisions yet.
                   </td>
                 </tr>
               )}
@@ -477,54 +437,52 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      {/* Divisions & Users */}
-      {branches.map((b) => (
-        <div key={b.id} className="space-y-4 mt-6">
-          <h3 className="text-lg font-semibold">Divisions for {b.name}</h3>
+      {/* Branches & Users by Division */}
+      {divisions.map((d) => (
+        <div key={d.id} className="space-y-4 mt-6">
+          <h3 className="text-lg font-semibold">Branches for {d.name}</h3>
           <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
             <table className="w-full border-collapse">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Division</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Description</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">Branch</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">Location</th>
                   <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {divisions.filter(d => d.branchId === b.id).map(d => (
-                  <React.Fragment key={d.id}>
+                {branches.filter((b) => b.divisionId === d.id).map((b) => (
+                  <React.Fragment key={b.id}>
                     <tr
                       className={`border-t transition-colors ${
-                        expandedDivisions[d.id] ? "bg-blue-100" : "hover:bg-gray-50"
+                        expandedBranches[b.id] ? "bg-blue-100" : "hover:bg-gray-50"
                       }`}
                     >
                       <td className="px-4 py-2 font-medium flex items-center gap-2">
-                        {d.name}
-                        {/* User count badge */}
+                        {b.name}
                         <span className="ml-1 bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
-                          {users.filter((u) => u.divisionId === d.id).length}
+                          {users.filter((u) => u.branchId === b.id).length}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-muted-foreground">{d.description || "-"}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{b.location}</td>
                       <td className="px-4 py-2 flex justify-center gap-2">
-                        <Button size="icon" variant="primary" onClick={() => toggleDivision(d.id)}>
-                          {expandedDivisions[d.id] ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
+                        <Button size="icon" onClick={() => toggleBranch(b.id)}>
+                          {expandedBranches[b.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </Button>
-                        <Button size="icon" onClick={() => handleEditDivision(d)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" onClick={() => handleDeleteDivision(d.id)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                        {(currentRole === "SuperAdmin" || currentRole === "IT Admin") && (
+                          <>
+                            <Button size="icon" onClick={() => handleEditBranch(b)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" onClick={() => handleDeleteBranch(b.id)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </>
+                        )}
                       </td>
                     </tr>
 
-                    {/* Expanded: show users */}
-                    {expandedDivisions[d.id] && (
+                    {expandedBranches[b.id] && (
                       <tr>
                         <td colSpan={3} className="px-4 py-2">
                           <div className="overflow-x-auto border rounded">
@@ -538,11 +496,8 @@ export default function UserManagementPage() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {users.filter(u => u.divisionId === d.id).map(u => (
-                                  <tr
-                                    key={u.id}
-                                    className="border-t hover:bg-gray-50 transition-colors"
-                                  >
+                                {users.filter((u) => u.branchId === b.id).map((u) => (
+                                  <tr key={u.id} className="border-t hover:bg-gray-50 transition-colors">
                                     <td className="px-2 py-1">{u.firstName} {u.lastName}</td>
                                     <td className="px-2 py-1">{u.email}</td>
                                     <td className="px-2 py-1">{u.role}</td>
@@ -556,7 +511,7 @@ export default function UserManagementPage() {
                                     </td>
                                   </tr>
                                 ))}
-                                {users.filter(u => u.divisionId === d.id).length === 0 && (
+                                {users.filter((u) => u.branchId === b.id).length === 0 && (
                                   <tr>
                                     <td colSpan={4} className="px-2 py-2 text-center text-muted-foreground">
                                       No users yet.
@@ -571,12 +526,10 @@ export default function UserManagementPage() {
                     )}
                   </React.Fragment>
                 ))}
-
-
-                {divisions.filter(d => d.branchId === b.id).length === 0 && (
+                {branches.filter((b) => b.divisionId === d.id).length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-center text-sm text-muted-foreground">
-                      No divisions yet.
+                      No branches yet.
                     </td>
                   </tr>
                 )}
@@ -586,33 +539,25 @@ export default function UserManagementPage() {
         </div>
       ))}
 
-
       {/* Modals */}
       {showAddBranch && (
-        <Modal
-          title={editingBranchId ? "Edit Branch" : "Add Branch"}
-          onClose={() => {
-            setShowAddBranch(false);
-            setEditingBranchId(null);
-          }}
-        >
+        <Modal title={editingBranchId ? "Edit Branch" : "Add Branch"} onClose={() => { setShowAddBranch(false); setEditingBranchId(null); }}>
           <Label>Branch Name</Label>
-          <Input
-            value={newBranch.name}
-            onChange={(e) =>
-              setNewBranch({ ...newBranch, name: e.target.value })
-            }
-            placeholder="Enter branch name"
-          />
+          <Input value={newBranch.name} onChange={(e) => setNewBranch({ ...newBranch, name: e.target.value })} />
 
-          <Label>Branch Location</Label>
-          <Input
-            value={newBranch.location}
-            onChange={(e) =>
-              setNewBranch({ ...newBranch, location: e.target.value })
-            }
-            placeholder="Enter branch location"
-          />
+          <Label>Location</Label>
+          <Input value={newBranch.location} onChange={(e) => setNewBranch({ ...newBranch, location: e.target.value })} />
+
+          <Label>Division</Label>
+          <Select value={newBranch.divisionId ? newBranch.divisionId.toString() : ""} onValueChange={(value) => setNewBranch({ ...newBranch, divisionId: Number(value) })}>
+            <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
+            <SelectContent>
+              {divisions.map((d) => (
+                <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Button onClick={handleSaveBranch} className="w-full">
             {editingBranchId ? "Update Branch" : "Save Branch"}
           </Button>
@@ -620,49 +565,12 @@ export default function UserManagementPage() {
       )}
 
       {showAddDivision && (
-        <Modal
-          title={editingDivisionId ? "Edit Division" : "Add Division"}
-          onClose={() => {
-            setShowAddDivision(false);
-            setEditingDivisionId(null);
-          }}
-        >
+        <Modal title={editingDivisionId ? "Edit Division" : "Add Division"} onClose={() => { setShowAddDivision(false); setEditingDivisionId(null); }}>
           <Label>Division Name</Label>
-          <Input
-            value={newDivision.name}
-            onChange={(e) =>
-              setNewDivision({ ...newDivision, name: e.target.value })
-            }
-            placeholder="Enter division name"
-          />
+          <Input value={newDivision.name} onChange={(e) => setNewDivision({ ...newDivision, name: e.target.value })} placeholder="Enter division name" />
 
           <Label>Description</Label>
-          <Input
-            value={newDivision.description}
-            onChange={(e) =>
-              setNewDivision({ ...newDivision, description: e.target.value })
-            }
-            placeholder="Enter description"
-          />
-
-          <Label>Branch</Label>
-          <Select
-            value={newDivision.branchId.toString()}
-            onValueChange={(value) =>
-              setNewDivision({ ...newDivision, branchId: Number(value) })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id.toString()}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input value={newDivision.description} onChange={(e) => setNewDivision({ ...newDivision, description: e.target.value })} placeholder="Enter description" />
 
           <Button onClick={handleSaveDivision} className="w-full">
             {editingDivisionId ? "Update Division" : "Save Division"}
@@ -671,100 +579,42 @@ export default function UserManagementPage() {
       )}
 
       {showAddUser && (
-        <Modal
-          title={editingUserId ? "Edit User" : "Add User"}
-          onClose={() => {
-            setShowAddUser(false);
-            setEditingUserId(null);
-          }}
-        >
+        <Modal title={editingUserId ? "Edit User" : "Add User"} onClose={() => { setShowAddUser(false); setEditingUserId(null); }}>
           <Label>First Name</Label>
-          <Input
-            value={newUser.firstName}
-            onChange={(e) =>
-              setNewUser({ ...newUser, firstName: e.target.value })
-            }
-            placeholder="Enter first name"
-          />
+          <Input value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} />
 
           <Label>Last Name</Label>
-          <Input
-            value={newUser.lastName}
-            onChange={(e) =>
-              setNewUser({ ...newUser, lastName: e.target.value })
-            }
-            placeholder="Enter last name"
-          />
+          <Input value={newUser.lastName} onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })} />
 
           <Label>Email</Label>
-          <Input
-            type="email"
-            value={newUser.email}
-            onChange={(e) =>
-              setNewUser({ ...newUser, email: e.target.value })
-            }
-            placeholder="Enter email"
-          />
+          <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
 
-          <Label>Branch</Label>
-          <Select
-            value={newUser.branchId ? newUser.branchId.toString() : ""}
-            onValueChange={(value) =>
-              setNewUser({ ...newUser, branchId: Number(value), divisionId: 0 })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select branch">
-                {branches.find((b) => b.id === newUser.branchId)?.name || "Select branch"}
-              </SelectValue>
-            </SelectTrigger>
+          <Label>Division</Label>
+          <Select value={newUser.divisionId ? newUser.divisionId.toString() : ""} onValueChange={(value) => setNewUser({ ...newUser, divisionId: Number(value), branchId: 0 })}>
+            <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
             <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id.toString()}>
-                  {b.name}
-                </SelectItem>
+              {divisions.map((d) => (
+                <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Label>Division</Label>
-          <Select
-            value={newUser.divisionId ? newUser.divisionId.toString() : ""}
-            onValueChange={(value) =>
-              setNewUser({ ...newUser, divisionId: Number(value) })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select division">
-                {divisions.find((d) => d.id === newUser.divisionId)?.name || "Select division"}
-              </SelectValue>
-            </SelectTrigger>
+          <Label>Branch</Label>
+          <Select value={newUser.branchId ? newUser.branchId.toString() : ""} onValueChange={(value) => setNewUser({ ...newUser, branchId: Number(value) })}>
+            <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
             <SelectContent>
-              {divisions
-                .filter((d) => d.branchId === newUser.branchId)
-                .map((d) => (
-                  <SelectItem key={d.id} value={d.id.toString()}>
-                    {d.name}
-                  </SelectItem>
-                ))}
+              {branches.filter((b) => b.divisionId === newUser.divisionId).map((b) => (
+                <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           <Label>Role</Label>
-          <Select
-            value={newUser.role || ""}
-            onValueChange={(value) =>
-              setNewUser({ ...newUser, role: value })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
+          <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
             <SelectContent>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.name}>
-                  {role.name}
-                </SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -779,22 +629,11 @@ export default function UserManagementPage() {
 }
 
 /* ---------- Simple Modal ---------- */
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void; }) {
   return (
     <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,42rem)]">
       <Card className="relative rounded-2xl shadow-2xl border">
-        <button
-          className="absolute top-2 right-3 text-gray-500 hover:text-black text-xl"
-          onClick={onClose}
-        >
+        <button className="absolute top-2 right-3 text-gray-500 hover:text-black text-xl" onClick={onClose}>
           ×
         </button>
         <CardHeader>

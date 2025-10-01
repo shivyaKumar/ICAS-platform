@@ -132,7 +132,7 @@ export default function StaffCompletedPage() {
             {
               id: "A-101",
               framework: "ISO 27001",
-              division: "Finance",
+              division: "Max Value",
               date: "2025-09-12",
               status: "Completed",
               controls: [

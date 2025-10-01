@@ -21,14 +21,20 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const body = await req.text();
+    const raw = await req.json();
+
+    const body = {
+      name: raw.name,
+      description: raw.description || null,
+    };
+
     const r = await fetch(`${BASE}/api/divisions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body,
+      body: JSON.stringify(body),
     });
     return new Response(await r.text(), { status: r.status });
   } catch (err) {
