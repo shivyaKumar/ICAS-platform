@@ -401,150 +401,120 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      {/* Divisions Table */}
+      {/* Division → Branch → User hierarchy */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Divisions</h2>
-        <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
-          <table className="w-full border-collapse">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="px-4 py-2 text-left text-sm font-semibold">Division Name</th>
-                <th className="px-4 py-2 text-left text-sm font-semibold">Description</th>
-                <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {divisions.map((d) => (
-                <tr key={d.id} className="border-t">
-                  <td className="px-4 py-2">{d.name}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{d.description || "-"}</td>
-                  <td className="px-4 py-2 flex justify-center gap-2">
-                    {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
-                      <>
-                        <Button size="icon" onClick={() => handleEditDivision(d)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" onClick={() => handleDeleteDivision(d.id)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {divisions.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-3 text-center text-sm text-muted-foreground">
-                    No divisions yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <h2 className="text-xl font-bold">Organization Structure</h2>
+        <div className="divide-y rounded-lg border border-gray-200 shadow bg-white">
+          {divisions.length === 0 && (
+            <div className="p-4 text-sm text-center text-muted-foreground">
+              No divisions yet.
+            </div>
+          )}
 
-      {/* Branches & Users by Division */}
-      {divisions.map((d) => (
-        <div key={d.id} className="space-y-4 mt-6">
-          <h3 className="text-lg font-semibold">Branches for {d.name}</h3>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Branch</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Location</th>
-                  <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          {divisions.map((d) => (
+            <div key={d.id} className="p-4">
+              {/* Division Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-semibold text-lg">
+                  <Layers className="h-4 w-4 text-gray-600" />
+                  {d.name}
+                  <span className="ml-1 text-xs text-gray-500">
+                    ({branches.filter((b) => b.divisionId === d.id).length} branches)
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => handleEditDivision(d)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDeleteDivision(d.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Branches under this Division */}
+              <div className="ml-6 mt-3 space-y-3 border-l pl-4">
+                {branches.filter((b) => b.divisionId === d.id).length === 0 && (
+                  <p className="text-sm text-muted-foreground">No branches yet.</p>
+                )}
+
                 {branches.filter((b) => b.divisionId === d.id).map((b) => (
-                  <React.Fragment key={b.id}>
-                    <tr
-                      className={`border-t transition-colors ${
-                        expandedBranches[b.id] ? "bg-blue-100" : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <td className="px-4 py-2 font-medium flex items-center gap-2">
+                  <div key={b.id} className="p-3 rounded-md border bg-gray-50">
+                    {/* Branch Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Building2 className="h-4 w-4 text-gray-600" />
                         {b.name}
-                        <span className="ml-1 bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full">
-                          {users.filter((u) => u.branchId === b.id).length}
+                        <span className="ml-1 text-xs text-gray-500">
+                          ({users.filter((u) => u.branchId === b.id).length} users)
                         </span>
-                      </td>
-                      <td className="px-4 py-2 text-muted-foreground">{b.location}</td>
-                      <td className="px-4 py-2 flex justify-center gap-2">
-                        <Button size="icon" onClick={() => toggleBranch(b.id)}>
-                          {expandedBranches[b.id] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" onClick={() => toggleBranch(b.id)}>
+                          {expandedBranches[b.id] ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
                         </Button>
                         {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
                           <>
-                            <Button size="icon" onClick={() => handleEditBranch(b)}>
+                            <Button size="icon" variant="ghost" onClick={() => handleEditBranch(b)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" onClick={() => handleDeleteBranch(b.id)}>
+                            <Button size="icon" variant="ghost" onClick={() => handleDeleteBranch(b.id)}>
                               <Trash2 className="h-4 w-4 text-red-500" />
                             </Button>
                           </>
                         )}
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
 
+                    {/* Users under Branch */}
                     {expandedBranches[b.id] && (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-2">
-                          <div className="overflow-x-auto border rounded">
-                            <table className="w-full text-sm">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th className="px-2 py-1 text-left">Name</th>
-                                  <th className="px-2 py-1 text-left">Email</th>
-                                  <th className="px-2 py-1 text-left">Role</th>
-                                  <th className="px-2 py-1 text-center">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {users.filter((u) => u.branchId === b.id).map((u) => (
-                                  <tr key={u.id} className="border-t hover:bg-gray-50 transition-colors">
-                                    <td className="px-2 py-1">{u.firstName} {u.lastName}</td>
-                                    <td className="px-2 py-1">{u.email}</td>
-                                    <td className="px-2 py-1">{u.role}</td>
-                                    <td className="px-2 py-1 flex justify-center gap-1">
-                                      <Button size="icon" onClick={() => handleEditUser(u)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="icon" onClick={() => handleDeleteUser(u.id)}>
-                                        <Trash2 className="h-4 w-4 text-red-500" />
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                ))}
-                                {users.filter((u) => u.branchId === b.id).length === 0 && (
-                                  <tr>
-                                    <td colSpan={4} className="px-2 py-2 text-center text-muted-foreground">
-                                      No users yet.
-                                    </td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
+                      <div className="mt-2 ml-6 space-y-2 border-l pl-4">
+                        {users.filter((u) => u.branchId === b.id).length === 0 && (
+                          <p className="text-sm text-muted-foreground">No users yet.</p>
+                        )}
+                        {users.filter((u) => u.branchId === b.id).map((u) => (
+                          <div
+                            key={u.id}
+                            className="flex items-center justify-between rounded bg-white p-2 shadow-sm"
+                          >
+                            {/* Left side: user info in one row */}
+                            <div className="flex items-center gap-6">
+                              <span className="text-sm font-medium">
+                                {u.firstName} {u.lastName}
+                              </span>
+                              <span className="text-xs text-gray-600">{u.email}</span>
+                              <span className="text-xs text-gray-500 italic">{u.role}</span>
+                            </div>
+
+                            {/* Right side: action buttons */}
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" onClick={() => handleEditUser(u)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => handleDeleteUser(u.id)}>
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
+                        ))}
+                      </div>
                     )}
-                  </React.Fragment>
+                  </div>
                 ))}
-                {branches.filter((b) => b.divisionId === d.id).length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-3 text-center text-sm text-muted-foreground">
-                      No branches yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
+
 
       {/* Modals */}
       {showAddBranch && (

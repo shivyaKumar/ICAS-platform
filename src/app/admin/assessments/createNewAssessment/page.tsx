@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label"; // use Label
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectTrigger,
@@ -13,36 +13,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+interface Division {
+  id: number;
+  name: string;
+}
+
+interface Branch {
+  id: number;
+  name: string;
+  divisionId: number;
+}
+
 export default function CreateAssessmentPage() {
+  const [frameworks, setFrameworks] = useState<{ id: string; name: string }[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
   const [selectedFramework, setSelectedFramework] = useState("");
-  const [selectedDivision, setSelectedDivision] = useState("");
-  const [selectedOwner, setSelectedOwner] = useState("");
+  const [selectedDivision, setSelectedDivision] = useState<number | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
   const [assessmentDate, setAssessmentDate] = useState("");
 
-  // Mock static dropdown options
-  const frameworks = [
-    { id: "iso27001", name: "ISO 27001" },
-    { id: "nist", name: "NIST CSF" },
-    { id: "gdpr", name: "GDPR" },
-  ];
+  // ✅ Fetch all data from DB
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fwRes, divRes, brRes] = await Promise.all([
+          fetch("/api/frameworks"),
+          fetch("/api/divisions"),
+          fetch("/api/branches"),
+        ]);
 
-  const divisions = [
-    { id: "finance", name: "Finance" },
-    { id: "hr", name: "Human Resources" },
-    { id: "it", name: "IT Division" },
-  ];
+        if (!fwRes.ok || !divRes.ok || !brRes.ok) {
+          throw new Error("Failed to load data");
+        }
 
-  const owners = [
-    { id: "1", name: "Alice Smith", divisionId: "finance" },
-    { id: "2", name: "Bob Johnson", divisionId: "hr" },
-    { id: "3", name: "Charlie Brown", divisionId: "it" },
-  ];
+        const [fwData, divData, brData] = await Promise.all([
+          fwRes.json(),
+          divRes.json(),
+          brRes.json(),
+        ]);
+
+        setFrameworks(fwData || []);
+        setDivisions(divData || []);
+        setBranches(brData || []);
+      } catch (err) {
+        console.error("Error loading data:", err);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleSubmit = () => {
     alert(`
       Framework: ${selectedFramework}
       Division: ${selectedDivision}
-      Owner: ${selectedOwner}
+      Branch: ${selectedBranch}
       Date: ${assessmentDate}
     `);
   };
@@ -64,11 +91,17 @@ export default function CreateAssessmentPage() {
                 <SelectValue placeholder="-- Select Framework --" />
               </SelectTrigger>
               <SelectContent>
-                {frameworks.map((fw) => (
-                  <SelectItem key={fw.id} value={fw.id}>
-                    {fw.name}
+                {frameworks.length > 0 ? (
+                  frameworks.map((fw) => (
+                    <SelectItem key={fw.id} value={fw.id}>
+                      {fw.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No frameworks available
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -76,35 +109,57 @@ export default function CreateAssessmentPage() {
           {/* Division */}
           <div>
             <Label htmlFor="division">Select Division</Label>
-            <Select onValueChange={setSelectedDivision} value={selectedDivision}>
+            <Select
+              onValueChange={(val) => {
+                setSelectedDivision(Number(val));
+                setSelectedBranch(null); // reset branch
+              }}
+              value={selectedDivision?.toString() || ""}
+            >
               <SelectTrigger id="division">
                 <SelectValue placeholder="-- Select Division --" />
               </SelectTrigger>
               <SelectContent>
-                {divisions.map((div) => (
-                  <SelectItem key={div.id} value={div.id}>
-                    {div.name}
+                {divisions.length > 0 ? (
+                  divisions.map((div) => (
+                    <SelectItem key={div.id} value={div.id.toString()}>
+                      {div.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No divisions available
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Owner */}
+          {/* Branch */}
           <div>
-            <Label htmlFor="owner">Owner (Auto-assigned)</Label>
-            <Select onValueChange={setSelectedOwner} value={selectedOwner}>
-              <SelectTrigger id="owner">
-                <SelectValue placeholder="-- Select Owner --" />
+            <Label htmlFor="branch">Select Branch</Label>
+            <Select
+              onValueChange={(val) => setSelectedBranch(Number(val))}
+              value={selectedBranch?.toString() || ""}
+              disabled={!selectedDivision}
+            >
+              <SelectTrigger id="branch">
+                <SelectValue placeholder="-- Select Branch --" />
               </SelectTrigger>
               <SelectContent>
-                {owners
-                  .filter((o) => o.divisionId === selectedDivision)
-                  .map((owner) => (
-                    <SelectItem key={owner.id} value={owner.id}>
-                      {owner.name}
-                    </SelectItem>
-                  ))}
+                {branches.filter((b) => b.divisionId === selectedDivision).length > 0 ? (
+                  branches
+                    .filter((b) => b.divisionId === selectedDivision)
+                    .map((b) => (
+                      <SelectItem key={b.id} value={b.id.toString()}>
+                        {b.name}
+                      </SelectItem>
+                    ))
+                ) : (
+                  <SelectItem value="none" disabled>
+                    No branches for this division
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
