@@ -1,59 +1,82 @@
 // src/app/api/login/route.ts
 export const runtime = "nodejs";
 
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // tolerant parsing (handles both JSON and form)
-    const ct = req.headers.get("content-type") || "";
-    let email = "", password = "";
+    // ----------------------------------------
+    // Parse body (supports JSON or form-data)
+    // ----------------------------------------
+    const contentType = req.headers.get("content-type") || "";
+    let email = "";
+    let password = "";
 
-    if (ct.includes("application/json")) {
-      const raw = await req.text();
-      const p = JSON.parse(raw);
-      email = p.email || "";
-      password = p.password || "";
-    } else if (ct.includes("application/x-www-form-urlencoded")) {
+    if (contentType.includes("application/json")) {
+      const body = await req.json();
+      email = body.email || "";
+      password = body.password || "";
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
       const form = await req.formData();
       email = String(form.get("email") || "");
       password = String(form.get("password") || "");
     } else {
       const raw = await req.text();
-      const p = JSON.parse(raw);
-      email = p.email || "";
-      password = p.password || "";
+      try {
+        const parsed = JSON.parse(raw);
+        email = parsed.email || "";
+        password = parsed.password || "";
+      } catch {
+        // ignore invalid JSON
+      }
     }
 
     if (!email || !password) {
-      return Response.json({ success: false, message: "email and password required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Email and password required" },
+        { status: 400 }
+      );
     }
 
-    const base = "http://127.0.0.1:5275"; // your API works here
-
-    const r = await fetch(`${base}/api/auth/login`, {
+    // ----------------------------------------
+    // Send login request to backend API
+    // ----------------------------------------
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:5275";
+    const response = await fetch(`${base}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
       cache: "no-store",
     });
 
-    if (!r.ok) {
-      const msg = await r.text();
-      return Response.json({ success: false, message: msg || `API ${r.status}` }, { status: r.status });
+    if (!response.ok) {
+      const msg = await response.text();
+      return NextResponse.json(
+        { success: false, message: msg || `API ${response.status}` },
+        { status: response.status }
+      );
     }
 
-    const data = await r.json(); // { token, role? }
+    const data = await response.json(); // expected: { token, role? }
     if (!data?.token) {
-      return Response.json({ success: false, message: "No token returned from API" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "No token returned from backend" },
+        { status: 500 }
+      );
     }
 
+    // ----------------------------------------
+    // Set secure cookie (via NextResponse)
+    // ----------------------------------------
     const hours = Number(process.env.JWT_EXPIRES_HOURS ?? 3);
     const expires = new Date(Date.now() + hours * 3600 * 1000);
 
-    /*
-    cookies().set({
+    const res = NextResponse.json({
+      success: true,
+      role: data.role ?? "User",
+    });
+
+    res.cookies.set({
       name: process.env.JWT_COOKIE ?? "icas_auth",
       value: data.token,
       httpOnly: true,
@@ -62,23 +85,15 @@ export async function POST(req: Request) {
       expires,
       path: "/",
     });
-    */
 
-  const cookieStore = await cookies();
-  cookieStore.set(
-    process.env.JWT_COOKIE ?? "icas_auth",
-    data.token,
-    {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      expires,
-      path: "/",
-    }
-  );
-
-    return Response.json({ success: true, role: data.role ?? "User" });
-  } catch (e: any) {
-    return Response.json({ success: false, message: String(e?.message || e) }, { status: 500 });
+    console.log("[LOGIN SUCCESS]", { email, role: data.role ?? "User" });
+    return res;
+  } catch (e: unknown) {
+    console.error("[LOGIN ERROR]", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json(
+      { success: false, message },
+      { status: 500 }
+    );
   }
 }

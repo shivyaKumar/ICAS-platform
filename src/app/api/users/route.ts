@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-const BASE = "http://127.0.0.1:5275";
+const BASE = process.env.API_BASE_URL ?? "http://127.0.0.1:5275";
 
 // Get all users
 export async function GET() {

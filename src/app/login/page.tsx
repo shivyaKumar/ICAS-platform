@@ -6,7 +6,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
-
 export default function LoginPage() {
   // --------------------------
   // State variables
@@ -17,52 +16,65 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);       
   const router = useRouter();                     
 
-
   // --------------------------
   // Handle login form submission
   // --------------------------
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const response = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      //Send login request
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include", // important for cookies
+      });
 
-    if (!response.ok) {
-      let errMsg = "Invalid email or password.";
+      if (!response.ok) {
+        let errMsg = "Invalid email or password.";
 
-      try {
-        const errData = await response.json();
-        // Force only the message string
-        if (errData?.message) {
-          errMsg = errData.message;
-        } else if (errData?.title) {
-          errMsg = errData.title;
-        } else if (typeof errData === "string") {
-          errMsg = errData;
+        try {
+          const errData = await response.json();
+          // Force only the message string
+          if (errData?.message) {
+            errMsg = errData.message;
+          } else if (errData?.title) {
+            errMsg = errData.title;
+          } else if (typeof errData === "string") {
+            errMsg = errData;
+          }
+        } catch {
+          // ignore parse errors
         }
-      } catch {
-        // ignore parse errors
+
+        setError(errMsg); // always a plain string
+        return;
       }
 
-      setError(errMsg); // always a plain string
-      return;
-    }
+      //Get user info (role)
+      const meRes = await fetch("/api/me", { credentials: "include" });
+      if (!meRes.ok) {
+        setError("Unable to verify user role.");
+        return;
+      }
 
-    const res = await response.json();
-    if (res.success) {
-      router.push("/post-login");
-    } else {
-      setError("Invalid email or password."); // fallback
+      const me = await meRes.json();
+      const role = me.roles?.[0] ?? "User";
+
+      //Redirect based on role
+      if (["Super Admin", "IT Admin", "Admin"].includes(role)) {
+        router.replace("/admin/dashboard");
+      } else if (role === "Standard User") {
+        router.replace("/staff/dashboard");
+      } else {
+        router.replace("/unauthorized");
+      }
+    } catch (err) {
+      console.error("Login error", err);
+      setError("Something went wrong. Please try again.");
     }
-  } catch (err) {
-    console.error("Login error", err);
-    setError("Something went wrong. Please try again.");
-  }
-};
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -164,12 +176,16 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center space-x-2 text-gray-600">
                 <input type="checkbox" className="h-4 w-4 text-yellow-500" />
-                <span>Keep me signed in</span>
+                <span>Remember me</span>
               </label>
-              <a href="#" className="text-yellow-600 hover:underline">
+              <a
+                href="/forgot-password"
+                className="text-yellow-600 hover:underline"
+              >
                 Forgot Password?
               </a>
             </div>
