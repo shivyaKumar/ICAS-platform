@@ -1,32 +1,142 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// Hard-coded API base for local dev to ensure requests hit the .NET API
+const API = "http://localhost:5275";
+console.log("API base =", API);
+
+// ↑ NEW: type for list rendering
+type FrameworkDto = { id: number; name: string; version?: string | null; controlCount: number };
+
 export default function FrameworksPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // ↑ NEW: list state
+  const [items, setItems] = useState<FrameworkDto[]>([]);
+
+  const pickFile = () => fileInputRef.current?.click();
+
+  // ↑ NEW: initial fetch of frameworks list (robust parse + logging)
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/frameworks`, {
+          // no credentials for a public GET – avoids CORS-with-credentials requirements
+          method: "GET",
+          mode: "cors",
+          headers: { Accept: "application/json" },
+        });
+
+        const text = await r.text();
+        console.log("GET /api/frameworks raw:", text);
+
+        if (!r.ok) {
+          console.warn("GET /api/frameworks failed:", r.status, r.statusText);
+          setItems([]);
+          return;
+        }
+
+        let data: unknown = [];
+        try { data = JSON.parse(text); } catch (e) {
+          console.error("JSON parse failed:", e);
+          setItems([]);
+          return;
+        }
+
+        if (Array.isArray(data)) setItems(data as FrameworkDto[]);
+        else {
+          console.warn("Unexpected payload:", data);
+          setItems([]);
+        }
+      } catch (e) {
+        console.error("GET /api/frameworks error:", e);
+        setItems([]);
+      }
+    })();
+  }, []);
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      alert("Only Excel files are allowed.");
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      alert("Only .xlsx Excel files are allowed.");
+      event.target.value = "";
       return;
     }
 
-    // Later: send file to backend
-    alert(`CSV uploaded: ${file.name}`);
+    try {
+      setLoading(true);
+      setMsg("");
+      const fd = new FormData();
+      fd.append("file", file);
+
+      // --- changed: include replace/dryRun and surface real error text ---
+      const replace = true;
+      const dryRun = false;
+
+      const res = await fetch(
+        `${API}/api/frameworks/import?replace=${replace}&dryRun=${dryRun}`,
+        {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+        }
+      );
+
+      const text = await res.text();
+      let data: any = null;
+      try { data = JSON.parse(text); } catch { /* non-JSON error */ }
+
+      if (!res.ok) {
+        setMsg(`Error ${res.status}: ${text || res.statusText}`);
+        return;
+      }
+
+      // ↓ NEW: append created item to the top of the list if API returned it
+      if (data?.created) {
+        setItems(prev => [data.created as FrameworkDto, ...prev]);
+      } else {
+        // fallback: refetch list
+        try {
+          const r = await fetch(`${API}/api/frameworks`, { credentials: "include" });
+          if (r.ok) {
+            const list = (await r.json()) as FrameworkDto[];
+            setItems(list);
+          }
+        } catch {}
+      }
+
+      // Keep your message, but read properties from either camelCase or PascalCase
+      const s = data?.summary ?? {};
+      const fwName = s.frameworkName ?? s.FrameworkName ?? "Framework";
+      const ver = s.version ?? s.Version ?? "—";
+      const count = s.controlsFound ?? s.ControlsFound ?? "?";
+      setMsg(`Imported: ${fwName} v${ver} (${count} controls)`);
+    } finally {
+      setLoading(false);
+      event.target.value = ""; // allow re-picking the same file
+    }
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click(); // trigger hidden input
-  };
-
-  const handleDownloadSample = () => {
-    // Call Next.js API route (proxying backend)
-    window.open("/api/filesample", "_blank");
+  const handleDownloadSample = async () => {
+    const r = await fetch(`${API}/api/frameworks/download-sample`, { credentials: "include" });
+    if (!r.ok) {
+      setMsg("Sample not found or unauthorized.");
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Framework_Sample.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -53,19 +163,20 @@ export default function FrameworksPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".xlsx"
             className="hidden"
             onChange={handleFileSelect}
           />
 
-          <Button variant="primary" size="sm" onClick={handleUploadClick}>
-            Upload Excel
+          <Button size="sm" onClick={pickFile} disabled={loading}>
+            {loading ? "Uploading..." : "Upload Excel"}
           </Button>
 
           <p className="text-xs md:text-sm text-gray-600 text-center max-w-md">
-            Only Excel files are supported for uploading frameworks.  
-            Download the sample template before uploading.
+            Only <b>.xlsx</b> files are supported for uploading frameworks. Download the sample template before uploading.
           </p>
+
+          {msg && <p className="text-sm">{msg}</p>}
         </CardContent>
       </Card>
 
@@ -75,10 +186,25 @@ export default function FrameworksPage() {
           <CardTitle className="text-base md:text-lg">Available Frameworks</CardTitle>
         </CardHeader>
         <CardContent className="min-w-0">
-          {/* Placeholder / empty state */}
-          <p className="text-gray-500 italic text-sm md:text-base">
-            No frameworks uploaded yet.
-          </p>
+          {items.length === 0 ? (
+            <p className="text-gray-500 italic text-sm md:text-base">
+              No frameworks yet.
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {items.map(f => (
+                <li key={f.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{f.name}</div>
+                    <div className="text-xs text-gray-500">Controls: {f.controlCount}</div>
+                  </div>
+                  <span className="text-xs rounded-full border px-2 py-1">
+                    v{f.version ?? "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>
