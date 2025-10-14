@@ -22,7 +22,6 @@ export async function middleware(req: NextRequest) {
 
   // Your backend returns roles array
   const roles: string[] = me.roles || [];
-  const role = roles.length > 0 ? roles[0] : null;
 
   const path = req.nextUrl.pathname;
 

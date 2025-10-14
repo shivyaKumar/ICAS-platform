@@ -1,180 +1,154 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-/* ---------- Types (only two statuses now) ---------- */
-type ReviewDecision = "" | "Approved" | "ChangesRequested" | "Rejected";
-type ComplianceStatus = "Pending" | "Compliant" | "NonCompliant";
-type AssessmentStatus = "InProgress" | "Submitted";
-
-type Control = {
-  id: string;
-  name: string;
-  status: ComplianceStatus;
-  implementation: string;
-  gapDescription: string;
-  assignedTo: string;
-  evidence: string;
-  review: ReviewDecision;
-  comments: string;
-  reviewDate: string;
-};
-
-type Assessment = {
+type AssessmentListItem = {
   id: number;
   framework: string;
-  division: string;
-  date: string;           // shown as plain text (no brackets)
-  status: AssessmentStatus;
-  controls: Control[];
+  division?: string | null;
+  branch?: string | null;
+  location?: string | null;
+  createdBy?: string | null;
+  assessmentDate?: string | null;
+  dueDate?: string | null;
+  progressRate?: number | null;
 };
 
-/* ---------- Helpers (no any) ---------- */
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
-}
-function g<T = unknown>(o: unknown, k: string): T | undefined {
-  return isRecord(o) ? (o as Record<string, unknown>)[k] as T : undefined;
-}
-function s(v: unknown, f = ""): string {
-  return typeof v === "string" ? v : f;
-}
-function n(v: unknown, f = 0): number {
-  const x = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(x) ? x : f;
-}
+const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
+};
 
-/* Map backend status names to the two we expose in UI */
-function normalizeStatus(raw: string): AssessmentStatus {
-  if (raw === "Submitted") return "Submitted";
-  // treat anything else that means “still being worked on” as InProgress
-  // (e.g. "Active", "Draft", etc.)
-  return "InProgress";
-}
+const formatProgress = (value?: number | null) => {
+  if (value === null || value === undefined) return "0% Complete";
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded}% Complete`;
+};
 
-/* ---------- Mappers ---------- */
-function controlFromUnknown(u: unknown, j: number): Control {
-  const id = s(g<string>(u, "id"), `c${j + 1}`);
-  return {
-    id,
-    name: s(g<string>(u, "name")),
-    status: ((): ComplianceStatus => {
-      const x = s(g<string>(u, "status"));
-      return x === "Compliant" || x === "NonCompliant" || x === "Pending" ? x : "Pending";
-    })(),
-    implementation: s(g<string>(u, "implementation")),
-    gapDescription: s(g<string>(u, "gapDescription")),
-    assignedTo: s(g<string>(u, "assignedTo")),
-    evidence: s(g<string>(u, "evidence")),
-    review: ((): ReviewDecision => {
-      const x = s(g<string>(u, "review"));
-      return x === "" || x === "Approved" || x === "ChangesRequested" || x === "Rejected" ? x : "";
-    })(),
-    comments: s(g<string>(u, "comments")),
-    reviewDate: s(g<string>(u, "reviewDate")),
-  };
-}
-
-function assessmentFromUnknown(u: unknown, i: number): Assessment {
-  const rawDate = s(g<string>(u, "date"));
-  const date = rawDate || new Date().toISOString().slice(0, 10); // ensure no empty "()"
-  const rawStatus = s(g<string>(u, "status"), "InProgress");
-  const controlsRaw = g<unknown>(u, "controls");
-
-  return {
-    id: n(g<number>(u, "id"), i + 1),
-    framework: s(g<string>(u, "framework")),
-    division: s(g<string>(u, "division")),
-    date,
-    status: normalizeStatus(rawStatus),
-    controls: Array.isArray(controlsRaw) ? controlsRaw.map((c, j) => controlFromUnknown(c, j)) : [],
-  };
-}
-
-/* ---------- localStorage helpers ---------- */
-const LS_CURRENT = "current_assessments";
-function readCurrentFromStorage(): Assessment[] {
-  try {
-    const raw = localStorage.getItem(LS_CURRENT);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((a, i) => assessmentFromUnknown(a, i));
-  } catch {
-    return [];
-  }
-}
-
-/* ---------- UI helpers ---------- */
-function StatusPill({ status }: { status: AssessmentStatus }) {
-  if (status === "InProgress") {
-    return <Badge className="bg-yellow-100 text-yellow-800">In&nbsp;Progress</Badge>;
-  }
-  return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
-}
-
-/* ---------- Component ---------- */
-export default function AdminCurrentList() {
-  const [items, setItems] = useState<Assessment[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+export default function CurrentAssessmentsPage() {
+  const [items, setItems] = useState<AssessmentListItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [closing, setClosing] = useState<number | null>(null);
+
+  const fetchAssessments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch("/api/assessments?status=Active", { cache: "no-store" });
+      if (!response.ok) throw new Error(await response.text());
+
+      const payload = (await response.json()) as AssessmentListItem[];
+      setItems(Array.isArray(payload) ? payload : []);
+    } catch (err) {
+      console.error("Failed to load assessments", err);
+      setError("Failed to load assessments. Please try again.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const ctrl = new AbortController();
+    fetchAssessments();
+  }, [fetchAssessments]);
 
-    async function fetchList(url: string) {
-      const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
-      if (!res.ok) return [] as unknown[];
-      const data: unknown = await res.json();
-      return Array.isArray(data) ? data : [];
+  const handleCloseAssessment = useCallback(async (id: number) => {
+    if (!confirm("Close this assessment?")) return;
+
+    try {
+      setClosing(id);
+      const response = await fetch(`/api/assessments/${id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+      alert("Assessment closed successfully.");
+      fetchAssessments();
+    } catch (err) {
+      console.error("Failed to close assessment", err);
+      alert("Unable to close assessment. Please try again.");
+    } finally {
+      setClosing(null);
+    }
+  }, [fetchAssessments]);
+
+  const content = useMemo(() => {
+    if (loading) {
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-gray-600">
+            Loading...
+          </td>
+        </tr>
+      );
     }
 
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    if (error) {
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-red-600">
+            {error}
+          </td>
+        </tr>
+      );
+    }
 
-        // Try common server filters; normalize to 2 statuses
-        const results: unknown[] = [
-          ...(await fetchList("/api/assessments?scope=current")),   // if supported
-          ...(await fetchList("/api/assessments?status=Active")),   // map to InProgress
-          ...(await fetchList("/api/assessments?status=Submitted")),
-        ];
+    if (!items.length) {
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-gray-500">
+            No current assessments.
+          </td>
+        </tr>
+      );
+    }
 
-        const mapped = results.map(assessmentFromUnknown);
-        // dedupe by id
-        const dedup = Array.from(new Map(mapped.map(a => [String(a.id), a])).values());
-
-        if (dedup.length) {
-          try { localStorage.setItem(LS_CURRENT, JSON.stringify(dedup)); } catch {}
-          setItems(dedup);
-        } else {
-          setItems(readCurrentFromStorage());
-        }
-      } catch (e) {
-        if (!(e instanceof DOMException && e.name === "AbortError")) {
-          setError("Failed to load assessments");
-          setItems(readCurrentFromStorage());
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-
-    const onStorage = (ev: StorageEvent) => {
-      if (ev.key === LS_CURRENT) setItems(readCurrentFromStorage());
-    };
-    window.addEventListener("storage", onStorage);
-
-    return () => {
-      ctrl.abort();
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
+    return items.map((item) => {
+      const progressText = formatProgress(item.progressRate ?? 0);
+      return (
+        <tr key={item.id} className="border-t">
+          <td className="px-5 py-3 font-medium whitespace-nowrap">{item.framework || "-"}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{item.division || "-"}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{item.branch || "-"}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{item.location || "-"}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{item.createdBy || "-"}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{formatDate(item.assessmentDate)}</td>
+          <td className="px-5 py-3 whitespace-nowrap">{formatDate(item.dueDate)}</td>
+          <td className="px-5 py-3 whitespace-nowrap">
+            <Badge className="bg-orange-100 text-orange-700">
+              {progressText}
+            </Badge>
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm" variant="secondary">
+                <Link href={`/admin/assessments/current/${encodeURIComponent(String(item.id))}`}>
+                  Review
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleCloseAssessment(item.id)}
+                disabled={closing === item.id}
+              >
+                {closing === item.id ? "Closing..." : "Close"}
+              </Button>
+            </div>
+          </td>
+        </tr>
+      );
+    });
+  }, [items, loading, error, closing, handleCloseAssessment]);
 
   return (
     <div className="p-6">
@@ -182,53 +156,26 @@ export default function AdminCurrentList() {
         <CardHeader>
           <CardTitle className="text-2xl">Current Assessments</CardTitle>
           <p className="text-sm text-gray-600">
-            Open an assessment to review controls and take action.
+            View all ongoing compliance assessments and their completion rate.
           </p>
         </CardHeader>
         <CardContent>
-          <div className="rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-xl border overflow-auto">
+            <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-gray-50 text-left">
                 <tr>
-                  <th className="px-5 py-3">Framework</th>
-                  <th className="px-5 py-3">Division</th>
-                  <th className="px-5 py-3">Created</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Action</th>
+                  <th className="px-5 py-3 font-semibold">Framework</th>
+                  <th className="px-5 py-3 font-semibold">Division</th>
+                  <th className="px-5 py-3 font-semibold">Branch</th>
+                  <th className="px-5 py-3 font-semibold">Location</th>
+                  <th className="px-5 py-3 font-semibold">Created By</th>
+                  <th className="px-5 py-3 font-semibold">Assessment Date</th>
+                  <th className="px-5 py-3 font-semibold">Due Date</th>
+                  <th className="px-5 py-3 font-semibold">Progress</th>
+                  <th className="px-5 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-8 text-gray-600">Loading…</td>
-                  </tr>
-                )}
-                {!loading && error && (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-8 text-red-600">{error}</td>
-                  </tr>
-                )}
-                {!loading && !error && items.map((a) => (
-                  <tr key={a.id} className="border-t">
-                    <td className="px-5 py-3 font-medium">{a.framework}</td>
-                    <td className="px-5 py-3">{a.division}</td>
-                    <td className="px-5 py-3">{a.date}</td>
-                    <td className="px-5 py-3"><StatusPill status={a.status} /></td>
-                    <td className="px-5 py-3">
-                      <Button asChild size="sm">
-                        <Link href={`/admin/assessments/current/${encodeURIComponent(String(a.id))}`}>
-                          Open
-                        </Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {!loading && !error && items.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-8 text-gray-600">No current assessments.</td>
-                  </tr>
-                )}
-              </tbody>
+              <tbody>{content}</tbody>
             </table>
           </div>
         </CardContent>

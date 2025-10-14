@@ -1,64 +1,109 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-// Hard-coded API base for local dev to ensure requests hit the .NET API
-const API = "http://localhost:5275";
+const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5275").replace(/\/+$/, "");
 console.log("API base =", API);
 
-// ↑ NEW: type for list rendering
-type FrameworkDto = { id: number; name: string; version?: string | null; controlCount: number };
+type FrameworkDto = {
+  id: number;
+  name: string;
+  version?: string | null;
+  controlCount: number;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const readString = (record: Record<string, unknown>, keys: string[], fallback = "") => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return fallback;
+};
+
+const readNumber = (record: Record<string, unknown>, keys: string[], fallback = 0) => {
+  for (const key of keys) {
+    const value = record[key];
+    const parsed = typeof value === "number" ? value : Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+};
+
+const downloadFile = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
 
 export default function FrameworksPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [msg, setMsg] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  // ↑ NEW: list state
   const [items, setItems] = useState<FrameworkDto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const fetchFrameworks = async () => {
+    try {
+      const response = await fetch(`${API}/api/frameworks`, {
+        method: "GET",
+        mode: "cors",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      });
+
+      const text = await response.text();
+      if (!response.ok) {
+        console.warn("GET /api/frameworks failed:", response.status, response.statusText);
+        setItems([]);
+        setMessage(text || "Unable to load frameworks.");
+        return;
+      }
+
+      let payload: unknown = [];
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        console.error("JSON parse failed:", error);
+        setItems([]);
+        setMessage("Unexpected response when loading frameworks.");
+        return;
+      }
+
+      if (Array.isArray(payload)) {
+        setItems(payload as FrameworkDto[]);
+        setMessage(null);
+      } else if (isRecord(payload) && Array.isArray(payload.items)) {
+        setItems(payload.items as FrameworkDto[]);
+        setMessage(null);
+      } else {
+        console.warn("Unexpected payload:", payload);
+        setItems([]);
+        setMessage("Framework list is empty.");
+      }
+    } catch (error) {
+      console.error("GET /api/frameworks error:", error);
+      setItems([]);
+      setMessage("Unable to reach framework service.");
+    }
+  };
+
+  useEffect(() => {
+    fetchFrameworks();
+  }, []);
 
   const pickFile = () => fileInputRef.current?.click();
-
-  // ↑ NEW: initial fetch of frameworks list (robust parse + logging)
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await fetch(`${API}/api/frameworks`, {
-          // no credentials for a public GET – avoids CORS-with-credentials requirements
-          method: "GET",
-          mode: "cors",
-          headers: { Accept: "application/json" },
-        });
-
-        const text = await r.text();
-        console.log("GET /api/frameworks raw:", text);
-
-        if (!r.ok) {
-          console.warn("GET /api/frameworks failed:", r.status, r.statusText);
-          setItems([]);
-          return;
-        }
-
-        let data: unknown = [];
-        try { data = JSON.parse(text); } catch (e) {
-          console.error("JSON parse failed:", e);
-          setItems([]);
-          return;
-        }
-
-        if (Array.isArray(data)) setItems(data as FrameworkDto[]);
-        else {
-          console.warn("Unexpected payload:", data);
-          setItems([]);
-        }
-      } catch (e) {
-        console.error("GET /api/frameworks error:", e);
-        setItems([]);
-      }
-    })();
-  }, []);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -72,76 +117,147 @@ export default function FrameworksPage() {
 
     try {
       setLoading(true);
-      setMsg("");
-      const fd = new FormData();
-      fd.append("file", file);
+      setMessage(null);
+      const form = new FormData();
+      form.append("file", file);
 
-      // --- changed: include replace/dryRun and surface real error text ---
       const replace = true;
       const dryRun = false;
 
-      const res = await fetch(
+      const response = await fetch(
         `${API}/api/frameworks/import?replace=${replace}&dryRun=${dryRun}`,
         {
           method: "POST",
-          body: fd,
+          body: form,
           credentials: "include",
         }
       );
 
-      const text = await res.text();
-      let data: any = null;
-      try { data = JSON.parse(text); } catch { /* non-JSON error */ }
+      const text = await response.text();
+      let payload: unknown = null;
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        // Non JSON payload
+      }
 
-      if (!res.ok) {
-        setMsg(`Error ${res.status}: ${text || res.statusText}`);
+      if (!response.ok) {
+        setMessage(text || response.statusText || "Failed to upload framework.");
         return;
       }
 
-      // ↓ NEW: append created item to the top of the list if API returned it
-      if (data?.created) {
-        setItems(prev => [data.created as FrameworkDto, ...prev]);
+      const record = isRecord(payload) ? payload : {};
+      const created =
+        isRecord(record.created)
+          ? (record.created as Record<string, unknown>)
+          : null;
+
+      if (created) {
+        const newItem: FrameworkDto = {
+          id: readNumber(created, ["id"], 0),
+          name: readString(created, ["name"], "Framework"),
+          version: readString(created, ["version"], "") || null,
+          controlCount: readNumber(created, ["controlCount"], 0),
+        };
+        setItems((prev) => [newItem, ...prev.filter((item) => item.id !== newItem.id)]);
       } else {
-        // fallback: refetch list
-        try {
-          const r = await fetch(`${API}/api/frameworks`, { credentials: "include" });
-          if (r.ok) {
-            const list = (await r.json()) as FrameworkDto[];
-            setItems(list);
-          }
-        } catch {}
+        await fetchFrameworks();
       }
 
-      // Keep your message, but read properties from either camelCase or PascalCase
-      const s = data?.summary ?? {};
-      const fwName = s.frameworkName ?? s.FrameworkName ?? "Framework";
-      const ver = s.version ?? s.Version ?? "—";
-      const count = s.controlsFound ?? s.ControlsFound ?? "?";
-      setMsg(`Imported: ${fwName} v${ver} (${count} controls)`);
+      const summary =
+        isRecord(record.summary)
+          ? (record.summary as Record<string, unknown>)
+          : isRecord(record.Summary)
+          ? (record.Summary as Record<string, unknown>)
+          : null;
+
+      const frameworkName = summary
+        ? readString(summary, ["frameworkName", "FrameworkName"], "Framework")
+        : "Framework";
+      const versionValue = summary
+        ? readString(summary, ["version", "Version"], "")
+        : "";
+      const controlsFound = summary
+        ? readNumber(summary, ["controlsFound", "ControlsFound"], 0)
+        : 0;
+
+      const displayVersion = versionValue || "N/A";
+      setMessage(`Imported: ${frameworkName} v${displayVersion} (${controlsFound} controls)`);
+    } catch (error) {
+      console.error("Upload framework failed", error);
+      setMessage("Failed to upload framework.");
     } finally {
       setLoading(false);
-      event.target.value = ""; // allow re-picking the same file
+      event.target.value = "";
     }
   };
 
   const handleDownloadSample = async () => {
-    const r = await fetch(`${API}/api/frameworks/download-sample`, { credentials: "include" });
-    if (!r.ok) {
-      setMsg("Sample not found or unauthorized.");
-      return;
+    try {
+      const response = await fetch(`${API}/api/frameworks/download-sample`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        setMessage(text || "Sample not found or unauthorized.");
+        return;
+      }
+
+      const blob = await response.blob();
+      downloadFile(blob, "Framework_Sample.xlsx");
+    } catch (error) {
+      console.error("Download sample failed", error);
+      setMessage("Unable to download sample file.");
     }
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Framework_Sample.xlsx";
-    a.click();
-    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadFramework = async (framework: FrameworkDto) => {
+    try {
+      const response = await fetch(`${API}/api/frameworks/${framework.id}/download`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        setMessage(text || `Failed to download ${framework.name}.`);
+        return;
+      }
+
+      const blob = await response.blob();
+      const filename = `${framework.name.replace(/\s+/g, "_") || "framework"}.xlsx`;
+      downloadFile(blob, filename);
+    } catch (error) {
+      console.error("Download framework failed", error);
+      setMessage(`Unable to download ${framework.name}.`);
+    }
+  };
+
+  const handleDeleteFramework = async (id: number) => {
+    if (!window.confirm("Delete this framework? This cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`${API}/api/frameworks/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        setMessage(text || "Failed to delete framework.");
+        return;
+      }
+
+      setItems((prev) => prev.filter((framework) => framework.id !== id));
+      setMessage("Framework deleted successfully.");
+    } catch (error) {
+      console.error("Delete framework failed", error);
+      setMessage("Unable to delete framework at this time.");
+    }
   };
 
   return (
     <div className="px-3 sm:px-4 md:px-6 py-4 space-y-6 min-w-0">
-      {/* Page Header */}
       <div className="flex items-center justify-between min-w-0">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold">Frameworks</h2>
@@ -154,7 +270,6 @@ export default function FrameworksPage() {
         </Button>
       </div>
 
-      {/* Upload Section */}
       <Card className="shadow-md border rounded-lg hover:shadow-lg transition-shadow">
         <CardHeader className="pb-2">
           <CardTitle className="text-base md:text-lg">Upload Framework</CardTitle>
@@ -176,31 +291,49 @@ export default function FrameworksPage() {
             Only <b>.xlsx</b> files are supported for uploading frameworks. Download the sample template before uploading.
           </p>
 
-          {msg && <p className="text-sm">{msg}</p>}
+          {message && <p className="text-sm text-center text-gray-700">{message}</p>}
         </CardContent>
       </Card>
 
-      {/* Available Frameworks */}
       <Card className="shadow-md border rounded-lg hover:shadow-lg transition-shadow">
         <CardHeader className="pb-2">
           <CardTitle className="text-base md:text-lg">Available Frameworks</CardTitle>
         </CardHeader>
         <CardContent className="min-w-0">
           {items.length === 0 ? (
-            <p className="text-gray-500 italic text-sm md:text-base">
-              No frameworks yet.
-            </p>
+            <p className="text-gray-500 italic text-sm md:text-base">No frameworks yet.</p>
           ) : (
             <ul className="divide-y">
-              {items.map(f => (
-                <li key={f.id} className="py-3 flex items-center justify-between">
+              {items.map((framework) => (
+                <li
+                  key={framework.id}
+                  className="py-3 flex items-center justify-between gap-4 flex-wrap"
+                >
                   <div>
-                    <div className="font-medium">{f.name}</div>
-                    <div className="text-xs text-gray-500">Controls: {f.controlCount}</div>
+                    <div className="font-medium">{framework.name}</div>
+                    <div className="text-xs text-gray-500">
+                      Controls: {framework.controlCount}
+                    </div>
                   </div>
-                  <span className="text-xs rounded-full border px-2 py-1">
-                    v{f.version ?? "—"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs rounded-full border px-2 py-1">
+                      v{framework.version ?? "N/A"}
+                    </span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleDownloadFramework(framework)}
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteFramework(framework.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

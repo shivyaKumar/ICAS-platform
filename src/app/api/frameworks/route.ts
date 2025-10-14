@@ -1,46 +1,19 @@
-// src/app/api/frameworks/route.ts
-import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-type Division = { name: string; percent: number };
-type Framework = {
-  id: string;
-  name: string;
-  percent: number;        // overall compliance for the framework
-  divisions: Division[];  // per-division breakdown
-};
-
-const MOCK: Framework[] = [
-  {
-    id: "iso27001",
-    name: "ISO 27001",
-    percent: 0,
-    divisions: [
-      { name: "MH", percent: 0 },
-      { name: "Carpenters Motors",      percent: 0 },
-    ],
-  },
-  {
-    id: "nistcsf",
-    name: "NIST CSF",
-    percent: 0,
-    divisions: [
-      { name: "MH", percent: 0 },
-      { name: "Carpenters Motors",      percent: 0 },
-
-    ],
-  },
-  {
-    id: "gdpr",
-    name: "GDPR",
-    percent: 0,
-    divisions: [
-      { name: "MH", percent: 0 },
-      { name: "Carpenters Motors",      percent: 0 },
-    ],
-  },
-];
+const BASE = process.env.API_BASE_URL ?? "http://127.0.0.1:5275";
 
 export async function GET() {
-  // later you’ll replace this with a call to your .NET backend
-  return NextResponse.json({ frameworks: MOCK });
+  try {
+    const token = (await cookies()).get("icas_auth")?.value;
+    const response = await fetch(`${BASE}/api/frameworks`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      cache: "no-store",
+    });
+
+    const text = await response.text();
+    return new Response(text, { status: response.status });
+  } catch (error) {
+    console.error("[Proxy] GET /api/frameworks failed", error);
+    return new Response("Failed to fetch frameworks", { status: 500 });
+  }
 }

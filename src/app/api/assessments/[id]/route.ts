@@ -3,15 +3,13 @@ import { NextResponse } from "next/server";
 
 const BASE = process.env.API_BASE_URL || "http://127.0.0.1:5275";
 
-/* ---------- GET: List all assessments ---------- */
-export async function GET(req: Request) {
+/* ---------- GET: Fetch single assessment ---------- */
+export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const url = new URL(req.url);
+    const endpoint = `${BASE}/api/assessments/${params.id}`;
 
-    const endpoint = `${BASE}/api/assessments${url.search ? "?" + url.searchParams.toString() : ""}`;
-
-    console.log("Fetching all assessments from:", endpoint);
+    console.log("Fetching single assessment:", endpoint);
 
     const res = await fetch(endpoint, {
       headers: {
@@ -28,24 +26,26 @@ export async function GET(req: Request) {
     }
 
     const text = await res.text();
-    console.log("Assessments fetched successfully.");
+    console.log("Single assessment fetched.");
     return new Response(text, { status: res.status });
   } catch (err) {
-    console.error("GET Assessments error:", err);
+    console.error("GET Single Assessment error:", err);
     return NextResponse.json(
-      { success: false, message: "Failed to fetch assessments" },
+      { success: false, message: "Failed to fetch assessment" },
       { status: 500 }
     );
   }
 }
 
-/* ---------- POST: Create new assessment ---------- */
-export async function POST(req: Request) {
+/* ---------- PUT: Update assessment ---------- */
+export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
     const body = await req.json();
-    const res = await fetch(`${BASE}/api/assessments`, {
-      method: "POST",
+    const endpoint = `${BASE}/api/assessments/${params.id}`;
+
+    const res = await fetch(endpoint, {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -55,17 +55,17 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       const text = await res.text();
-      console.error(`Backend create failed ${res.status}:`, text);
+      console.error(`Backend update failed ${res.status}:`, text);
       return NextResponse.json({ success: false, message: text }, { status: res.status });
     }
 
     const text = await res.text();
-    console.log("Assessment created successfully.");
+    console.log("Assessment updated successfully.");
     return new Response(text, { status: res.status });
   } catch (err) {
-    console.error("POST Assessment error:", err);
+    console.error("PUT Assessment error:", err);
     return NextResponse.json(
-      { success: false, message: "Failed to create assessment" },
+      { success: false, message: "Failed to update assessment" },
       { status: 500 }
     );
   }

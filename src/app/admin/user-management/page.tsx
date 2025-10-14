@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,19 @@ export default function UserManagementPage() {
     setExpandedBranches((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const branchLookup = useMemo(() => {
+    const map = new Map<number, Branch>();
+    branches.forEach((branch) => map.set(branch.id, branch));
+    return map;
+  }, [branches]);
+
+  const formatBranchLabel = (branch?: Branch | null) => {
+    if (!branch) return "Branch not linked";
+    const location = (branch.location || "").trim();
+    return location.length > 0 ? `${branch.name} - ${location}` : branch.name;
+  };
+
+
   /* ---------- Fetch all data ---------- */
   const reloadAll = async () => {
     try {
@@ -160,7 +173,7 @@ export default function UserManagementPage() {
       const body = {
         name: newBranch.name,
         location: newBranch.location,
-        divisionId: newBranch.divisionId, // ✅ always send valid int
+        divisionId: newBranch.divisionId, // ? always send valid int
       };
 
       if (editingBranchId) {
@@ -401,7 +414,7 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      {/* Division → Branch → User hierarchy */}
+      {/* Division ? Branch ? User hierarchy */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold">Organization Structure</h2>
         <div className="divide-y rounded-lg border border-gray-200 shadow bg-white">
@@ -448,7 +461,10 @@ export default function UserManagementPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 font-medium">
                         <Building2 className="h-4 w-4 text-gray-600" />
-                        {b.name}
+                        <span>{b.name}</span>
+                        {b.location && (
+                          <span className="text-xs text-gray-500"> - {b.location}</span>
+                        )}
                         <span className="ml-1 text-xs text-gray-500">
                           ({users.filter((u) => u.branchId === b.id).length} users)
                         </span>
@@ -480,31 +496,36 @@ export default function UserManagementPage() {
                         {users.filter((u) => u.branchId === b.id).length === 0 && (
                           <p className="text-sm text-muted-foreground">No users yet.</p>
                         )}
-                        {users.filter((u) => u.branchId === b.id).map((u) => (
-                          <div
-                            key={u.id}
-                            className="flex items-center justify-between rounded bg-white p-2 shadow-sm"
-                          >
-                            {/* Left side: user info in one row */}
-                            <div className="flex items-center gap-6">
-                              <span className="text-sm font-medium">
-                                {u.firstName} {u.lastName}
-                              </span>
-                              <span className="text-xs text-gray-600">{u.email}</span>
-                              <span className="text-xs text-gray-500 italic">{u.role}</span>
-                            </div>
+                        {users.filter((user) => user.branchId === b.id).map((user) => {
+                          const branchInfo = branchLookup.get(user.branchId);
+                          const branchLabel = formatBranchLabel(branchInfo);
+                          return (
+                            <div
+                              key={user.id}
+                              className="flex items-center justify-between rounded bg-white p-2 shadow-sm"
+                            >
+                              {/* Left side: user info */}
+                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-6">
+                                <span className="text-sm font-medium">
+                                  {user.firstName} {user.lastName}
+                                </span>
+                                <span className="text-xs text-gray-600">{user.email}</span>
+                                <span className="text-xs text-gray-500 italic">{user.role}</span>
+                                <span className="text-xs text-gray-500">{branchLabel}</span>
+                              </div>
 
-                            {/* Right side: action buttons */}
-                            <div className="flex gap-1">
-                              <Button size="icon" variant="ghost" onClick={() => handleEditUser(u)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" onClick={() => handleDeleteUser(u.id)}>
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
+                              {/* Right side: action buttons */}
+                              <div className="flex gap-1">
+                                <Button size="icon" variant="ghost" onClick={() => handleEditUser(user)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button size="icon" variant="ghost" onClick={() => handleDeleteUser(user.id)}>
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -580,8 +601,10 @@ export default function UserManagementPage() {
           <Select value={newUser.branchId ? newUser.branchId.toString() : ""} onValueChange={(value) => setNewUser({ ...newUser, branchId: Number(value) })}>
             <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
             <SelectContent>
-              {branches.filter((b) => b.divisionId === newUser.divisionId).map((b) => (
-                <SelectItem key={b.id} value={b.id.toString()}>{b.name}</SelectItem>
+              {branches.filter((branch) => branch.divisionId === newUser.divisionId).map((branch) => (
+                <SelectItem key={branch.id} value={branch.id.toString()}>
+                  {formatBranchLabel(branch)}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -611,7 +634,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
     <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,42rem)]">
       <Card className="relative rounded-2xl shadow-2xl border">
         <button className="absolute top-2 right-3 text-gray-500 hover:text-black text-xl" onClick={onClose}>
-          ×
+          x
         </button>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -623,3 +646,9 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
     </div>
   );
 }
+
+
+
+
+
+
