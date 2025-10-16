@@ -1,32 +1,28 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const API_BASE = process.env.API_BASE_URL ?? "http://127.0.0.1:5275";
+const BASE = process.env.API_BASE_URL || "http://127.0.0.1:5275";
 
-type RouteContext = { params: Promise<{ findingId: string }> };
-
-export async function GET(_req: Request, context: RouteContext) {
+/* ---------- GET: List all evidence for a finding ---------- */
+export async function GET(req: Request, { params }: { params: { findingId: string } }) {
   try {
-    const { findingId } = await context.params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get("icas_auth")?.value;
+    const token = (await cookies()).get("icas_auth")?.value ?? "";
 
-    const response = await fetch(`${API_BASE}/api/evidence/${findingId}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      cache: "no-store",
+    const res = await fetch(`${BASE}/api/evidence/${params.findingId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
 
-    const text = await response.text();
-    if (!response.ok) {
-      return NextResponse.json({ message: text || "Failed to load evidence" }, { status: response.status });
-    }
-
-    return new Response(text, {
-      status: response.status,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("[Evidence] list proxy failed", error);
-    return NextResponse.json({ message: "Unable to load evidence" }, { status: 500 });
+    const text = await res.text();
+    return new Response(text, { status: res.status });
+  } catch (err) {
+    console.error("[ICAS-FE] Evidence fetch error:", err);
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch evidence" },
+      { status: 500 }
+    );
   }
 }

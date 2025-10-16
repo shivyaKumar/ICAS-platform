@@ -1,20 +1,18 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-
-import AssessmentTable, {
-  type UserOption,
-} from "@/components/assessments/AssessmentTable";
+import AssessmentTable, { type UserOption } from "@/components/assessments/AssessmentTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
 import type { Assessment, Evidence, Finding } from "@/types/assessment";
 
-const ASSIGNABLE_ROLES = new Set(["Admin", "Standard User"]);
-
-function normalize(value?: string | null) {
-  if (!value) return "";
-  return value.trim().toLowerCase();
+/* ----------------- Utility Helpers ----------------- */
+function normalize(value?: string | null): string {
+  return value ? value.trim().toLowerCase() : "";
 }
 
 function composeFullName(
@@ -22,7 +20,7 @@ function composeFullName(
   last?: string | null,
   email?: string | null,
   fallback = ""
-) {
+): string {
   const parts: string[] = [];
   if (first && first.trim()) parts.push(first.trim());
   if (last && last.trim()) parts.push(last.trim());
@@ -38,56 +36,36 @@ function toEvidenceList(value: unknown): Evidence[] {
       if (!item || typeof item !== "object") return null;
       const record = item as Record<string, unknown>;
       return {
-        id: typeof record.id === "number" ? record.id : undefined,
+        id: typeof record.id === "number" ? record.id : 0,
         fileName: typeof record.fileName === "string" ? record.fileName : null,
         fileUrl: typeof record.fileUrl === "string" ? record.fileUrl : null,
-        description: typeof record.description === "string" ? record.description : null,
-        uploadedBy: typeof record.uploadedBy === "string" ? record.uploadedBy : null,
-        uploadedAt: typeof record.uploadedAt === "string" ? record.uploadedAt : null,
-      } satisfies Evidence;
+        description:
+          typeof record.description === "string" ? record.description : null,
+        uploadedBy:
+          typeof record.uploadedBy === "string" ? record.uploadedBy : null,
+        uploadedAt:
+          typeof record.uploadedAt === "string" ? record.uploadedAt : null,
+      } as Evidence;
     })
     .filter(Boolean) as Evidence[];
 }
 
 function mapFinding(raw: unknown): Finding {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-
-  const idValue = source.id;
-  const numericId =
-    typeof idValue === "number"
-      ? idValue
-      : typeof idValue === "string"
-      ? Number(idValue)
-      : Number.NaN;
-  const id = Number.isFinite(numericId) ? Number(numericId) : 0;
-
-  const code =
-    typeof source.code === "string" && source.code.trim().length > 0
-      ? source.code.trim()
-      : `AF-${id || 0}`;
+  const id = Number(source.id) || 0;
 
   const getString = (key: string): string | undefined =>
     typeof source[key] === "string" ? (source[key] as string) : undefined;
+
   const getNullableString = (key: string): string | null =>
     typeof source[key] === "string" ? (source[key] as string) : null;
 
-  const assignedTo =
-    typeof source.assignedTo === "string"
-      ? (source.assignedTo as string)
-      : typeof source.assignedAdmin === "string"
-      ? (source.assignedAdmin as string)
-      : undefined;
-
-  const assignedToUserId =
-    typeof source.assignedToUserId === "string"
-      ? (source.assignedToUserId as string)
-      : typeof source.assignedUserId === "string"
-      ? (source.assignedUserId as string)
-      : undefined;
-
   return {
     id,
-    code,
+    code:
+      typeof source.code === "string" && source.code.trim().length > 0
+        ? source.code.trim()
+        : `AF-${id || 0}`,
     title: getString("title"),
     description: getString("description"),
     domain: getString("domain"),
@@ -102,20 +80,61 @@ function mapFinding(raw: unknown): Finding {
     reviewerComment:
       getNullableString("reviewerComment") ?? getNullableString("comments"),
     review: getString("review"),
-    assignedTo,
-    assignedToUserId,
+    assignedTo:
+      getString("assignedTo") ??
+      getString("assignedAdmin") ??
+      getString("assignedUser"),
+    assignedToUserId:
+      getString("assignedToUserId") ??
+      getString("assignedUserId") ??
+      undefined,
     createdBy: getString("createdBy"),
     modifiedDate: getString("modifiedDate") ?? getString("updatedAt"),
     latestEvidenceLabel:
-      getString("latestEvidenceLabel") ?? getString("evidenceFile") ?? undefined,
+      getString("latestEvidenceLabel") ?? getString("evidenceFile"),
     latestEvidenceUrl: getString("latestEvidenceUrl"),
     latestEvidenceDescription: getString("latestEvidenceDescription"),
     latestEvidenceUploadedBy: getString("latestEvidenceUploadedBy"),
     latestEvidenceUploadedAt: getString("latestEvidenceUploadedAt"),
-    evidences: toEvidenceList((source.evidences as unknown) ?? (source.Evidences as unknown)),
+    evidences: toEvidenceList(
+      (source.evidences as unknown) ?? (source.Evidences as unknown)
+    ),
   } as Finding;
 }
 
+/* ----------------- Fetch Current User ----------------- */
+async function fetchUser(): Promise<{
+  id?: string;
+  role?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}> {
+  try {
+    const res = await fetch("/api/me", { credentials: "include", cache: "no-store" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    if (Array.isArray(data)) {
+      const result: any = {};
+      for (const claim of data) {
+        if (claim.type?.includes("identity/claims/role")) result.role = claim.value;
+        if (claim.type?.includes("nameidentifier")) result.id = claim.value;
+        if (claim.type?.includes("email")) result.email = claim.value;
+        if (claim.type?.includes("givenname")) result.firstName = claim.value;
+        if (claim.type?.includes("surname")) result.lastName = claim.value;
+      }
+      return result;
+    }
+
+    return data;
+  } catch (err) {
+    console.error("Failed to fetch user info:", err);
+    return {};
+  }
+}
+
+/* ----------------- Main Component ----------------- */
 export default function AssessmentDetailClient() {
   const params = useParams<{ id: string }>();
   const numericId = useMemo(() => {
@@ -128,11 +147,11 @@ export default function AssessmentDetailClient() {
   const [assignableUsers, setAssignableUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [canModerate, setCanModerate] = useState(false);
 
   const loadAssessment = useCallback(async () => {
+    console.log("Reloading assessment from server...");
     if (!Number.isFinite(numericId)) {
-      setError("Invalid assessment id supplied");
+      setError("Invalid assessment ID.");
       setLoading(false);
       return;
     }
@@ -141,27 +160,8 @@ export default function AssessmentDetailClient() {
       setLoading(true);
       setError(null);
 
-      const meRes = await fetch("/api/me", { credentials: "include", cache: "no-store" });
-      if (!meRes.ok) throw new Error(await meRes.text());
-      const me = await meRes.json();
-
-      const roles: string[] = Array.isArray(me?.roles)
-        ? me.roles.filter((role: unknown): role is string => typeof role === "string")
-        : typeof me?.role === "string"
-        ? [me.role]
-        : [];
-
-      const userId: string | null =
-        typeof me?.id === "string"
-          ? me.id
-          : typeof me?.userId === "string"
-          ? me.userId
-          : typeof me?.user?.id === "string"
-          ? me.user.id
-          : null;
-
-      const isModerator = roles.includes("Super Admin") || roles.includes("IT Admin");
-      setCanModerate(isModerator);
+      const me = await fetchUser();
+      const userId = me.id ?? "";
 
       const detailPath = userId
         ? `/api/assessments/${numericId}?userId=${encodeURIComponent(userId)}`
@@ -177,34 +177,21 @@ export default function AssessmentDetailClient() {
       if (!usersRes.ok) throw new Error(await usersRes.text());
       if (!branchesRes.ok) throw new Error(await branchesRes.text());
 
-      const detailData = (await detailRes.json()) as Record<string, unknown>;
-      const usersData = (await usersRes.json()) as Array<{
-        id: string;
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        role?: string;
-        branchId?: number;
-        branchName?: string;
-        divisionName?: string;
-      }>;
-      const branches = (await branchesRes.json()) as Array<{
-        id: number;
-        name: string;
-        divisionName?: string | null;
-        location?: string | null;
-      }>;
+      const detailData = await detailRes.json();
+      const usersData = await usersRes.json();
+      const branches = await branchesRes.json();
 
-      const branchLookup = new Map<number, (typeof branches)[number]>();
-      branches.forEach((branch) => branchLookup.set(branch.id, branch));
+      /* ------------------ Build Assignable User List ------------------ */
+      const branchLookup = new Map<number, any>();
+      branches.forEach((branch: any) => branchLookup.set(branch.id, branch));
 
-      const targetBranch = normalize(detailData.branch as string | undefined);
-      const targetDivision = normalize(detailData.division as string | undefined);
-      const targetLocation = normalize(detailData.location as string | undefined);
+      const targetBranch = normalize(detailData.branch);
+      const targetDivision = normalize(detailData.division);
+      const targetLocation = normalize(detailData.location);
 
-      const candidates = usersData
-        .filter((user) => ASSIGNABLE_ROLES.has(user.role ?? ""))
-        .filter((user) => {
+      const candidates = (Array.isArray(usersData) ? usersData : [])
+        .filter((user: any) => !!user.role)
+        .filter((user: any) => {
           const branchInfo = user.branchId ? branchLookup.get(user.branchId) : undefined;
           const userBranch = normalize(user.branchName ?? branchInfo?.name);
           const userDivision = normalize(user.divisionName ?? branchInfo?.divisionName);
@@ -213,16 +200,15 @@ export default function AssessmentDetailClient() {
           const branchMatches = !targetBranch || userBranch === targetBranch;
           const divisionMatches = !targetDivision || userDivision === targetDivision;
           const locationMatches = !targetLocation || userLocation === targetLocation;
-
           return branchMatches && divisionMatches && locationMatches;
         })
-        .map((user) => ({
-          id: user.id,
+        .map((user: any) => ({
+          id: String(user.id),
           fullName: composeFullName(
-            user.firstName ?? null,
-            user.lastName ?? null,
-            user.email ?? null,
-            user.email ?? user.id
+            user.firstName,
+            user.lastName,
+            user.email,
+            user.email ?? String(user.id)
           ),
           email: user.email,
           role: user.role,
@@ -231,65 +217,45 @@ export default function AssessmentDetailClient() {
       const assignableMap = new Map<string, UserOption>();
       candidates.forEach((user) => assignableMap.set(user.id, user));
 
-      if (userId && roles.some((role) => ASSIGNABLE_ROLES.has(role))) {
-        assignableMap.set(userId, {
-          id: userId,
-          fullName: composeFullName(me?.firstName, me?.lastName, me?.email, userId),
-          email: typeof me?.email === "string" ? me.email : undefined,
-          role: roles[0],
-        });
-      }
-
-      const findingsRaw = Array.isArray(detailData.findings) ? detailData.findings : [];
-      findingsRaw.forEach((item) => {
-        if (!item || typeof item !== "object") return;
-        const record = item as Record<string, unknown>;
-        const assignedId = record.assignedToUserId;
-        const assignedName = record.assignedTo;
+      const findingsRaw = Array.isArray(detailData.findings)
+        ? detailData.findings
+        : [];
+      findingsRaw.forEach((item: any) => {
+        const assignedId = item.assignedToUserId;
+        const assignedName = item.assignedTo;
         if (typeof assignedId === "string" && !assignableMap.has(assignedId)) {
           assignableMap.set(assignedId, {
             id: assignedId,
             fullName:
-              typeof assignedName === "string" && assignedName.trim().length > 0
-                ? assignedName
-                : assignedId,
+              typeof assignedName === "string" ? assignedName : assignedId,
           });
         }
       });
 
       const sortedAssignable = Array.from(assignableMap.values()).sort((a, b) =>
-        (a.fullName || a.email || a.id).localeCompare(b.fullName || b.email || b.id, undefined, {
-          sensitivity: "base",
-        })
+        (a.fullName || a.email || a.id).localeCompare(
+          b.fullName || b.email || b.id
+        )
       );
 
       const sanitized: Assessment = {
         id: numericId,
-        framework: typeof detailData.framework === "string" ? detailData.framework : "",
-        division: typeof detailData.division === "string" ? detailData.division : undefined,
-        branch: typeof detailData.branch === "string" ? detailData.branch : undefined,
-        location: typeof detailData.location === "string" ? detailData.location : undefined,
-        status: typeof detailData.status === "string" ? detailData.status : undefined,
-        assessmentScope:
-          typeof detailData.assessmentScope === "string" ? detailData.assessmentScope : undefined,
-        createdBy: typeof detailData.createdBy === "string" ? detailData.createdBy : undefined,
-        createdAt:
-          typeof detailData.createdAt === "string" ? detailData.createdAt : new Date().toISOString(),
-        modifiedDate:
-          typeof detailData.modifiedDate === "string" ? detailData.modifiedDate : undefined,
-        assessmentDate:
-          typeof detailData.assessmentDate === "string" ? detailData.assessmentDate : undefined,
-        dueDate: typeof detailData.dueDate === "string" ? detailData.dueDate : undefined,
-        progressRate:
-          typeof detailData.progressRate === "number" ? detailData.progressRate : undefined,
+        framework: detailData.framework ?? "",
+        division: detailData.division,
+        branch: detailData.branch,
+        location: detailData.location,
+        status: detailData.status,
+        createdBy: detailData.createdBy,
+        createdAt: detailData.createdAt ?? new Date().toISOString(),
+        modifiedDate: detailData.modifiedDate,
         findings: findingsRaw.map(mapFinding),
       } as Assessment;
 
       setAssignableUsers(sortedAssignable);
       setAssessment(sanitized);
     } catch (err) {
-      console.error("Assessment detail load failed", err);
-      setError(err instanceof Error ? err.message : "Unable to load assessment");
+      console.error("Assessment detail load failed:", err);
+      setError(err instanceof Error ? err.message : "Unable to load assessment.");
     } finally {
       setLoading(false);
     }
@@ -299,18 +265,21 @@ export default function AssessmentDetailClient() {
     loadAssessment();
   }, [loadAssessment]);
 
-  if (loading) {
-    return <p className="mt-8 text-center text-muted-foreground">Loading assessment�</p>;
-  }
+  if (loading)
+    return (
+      <p className="mt-8 text-center text-muted-foreground">
+        Loading assessment…
+      </p>
+    );
 
-  if (error || !assessment) {
+  if (error || !assessment)
     return (
       <p className="mt-8 text-center text-red-600">
         {error ?? "Failed to load assessment details."}
       </p>
     );
-  }
 
+  /* ------------------ Render ------------------ */
   return (
     <div className="space-y-6">
       <Card>
@@ -324,31 +293,18 @@ export default function AssessmentDetailClient() {
         <CardContent className="grid gap-2 text-sm text-muted-foreground">
           {assessment.location && (
             <span>
-              <strong className="text-foreground">Location:</strong> {assessment.location}
-            </span>
-          )}
-          {assessment.assessmentScope && (
-            <span>
-              <strong className="text-foreground">Scope:</strong> {assessment.assessmentScope}
+              <strong className="text-foreground">Location:</strong>{" "}
+              {assessment.location}
             </span>
           )}
           <span>
-            <strong className="text-foreground">Created By:</strong> {assessment.createdBy ?? "Unknown"}
+            <strong className="text-foreground">Created By:</strong>{" "}
+            {assessment.createdBy ?? "Unknown"}
           </span>
           <span>
             <strong className="text-foreground">Created At:</strong>{" "}
             {new Date(assessment.createdAt).toLocaleString()}
           </span>
-          {assessment.dueDate && (
-            <span>
-              <strong className="text-foreground">Due Date:</strong> {assessment.dueDate}
-            </span>
-          )}
-          {typeof assessment.progressRate === "number" && (
-            <span>
-              <strong className="text-foreground">Progress:</strong> {assessment.progressRate}%
-            </span>
-          )}
         </CardContent>
       </Card>
 
@@ -358,11 +314,8 @@ export default function AssessmentDetailClient() {
         </CardHeader>
         <CardContent>
           <AssessmentTable
-            assessmentId={assessment.id}
             findings={assessment.findings ?? []}
             assignableUsers={assignableUsers}
-            canEditCompliance={canModerate}
-            canReview={canModerate}
             onRefresh={loadAssessment}
           />
         </CardContent>

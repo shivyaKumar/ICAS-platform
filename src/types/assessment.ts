@@ -1,7 +1,3 @@
-/* -----------------------------------------------------------
-   ICAS-P Shared Type Definitions (Frontend <-> Backend)
-   ----------------------------------------------------------- */
-
 /* ---------- Evidence (File Upload Metadata) ---------- */
 export interface Evidence {
   fileName: string;
@@ -19,6 +15,7 @@ export interface Finding {
   status: string;                 // "In Progress" | "Approved" | "Rejected"
   compliance: string;             // "Yes" | "No" | "Partially" | "N/A"
   evidenceRequired: boolean;
+
   evidences?: Evidence[];
   evidenceNote?: string;
   comments?: string;
@@ -26,6 +23,11 @@ export interface Finding {
   assignedTo?: string;
   createdBy?: string;
   modifiedDate?: string;
+  availableUsers?: { id: number; userName: string }[];
+
+  /* ---------- Additional optional fields from backend ---------- */
+  evidenceFile?: string;          // When backend returns file name only
+  reviewerComment?: string;       // For IT admin / superadmin review feedback
 }
 
 /* ---------- Assessment (Parent Record) ---------- */

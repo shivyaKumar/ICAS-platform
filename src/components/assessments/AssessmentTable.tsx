@@ -11,19 +11,28 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import React, { useState, useRef, useEffect } from "react";
-import { Finding } from "@/types/assessment"; // ✅ Shared backend-aligned type
+import { Finding } from "@/types/assessment";
+import EvidenceDrawer from "@/components/assessments/EvidenceDrawer";
+
 
 interface AssessmentTableProps {
   findings: Finding[];
-  mode?: "readonly" | "review";
-  onUpdate?: (id: number, field: string, value: string) => void;
+  assignableUsers?: UserOption[];
+  onRefresh?: () => void;
 }
+// ---------- Shared Type for Assignable Users ----------
+export type UserOption = {
+  id: string;
+  fullName?: string | null;
+  email?: string | null;
+  role?: string | null;
+};
 
-/* ---------- Component ---------- */
+/* ---------------- MAIN COMPONENT ---------------- */
 export default function AssessmentTable({
   findings,
-  mode = "readonly",
-  onUpdate,
+  assignableUsers = [],
+  onRefresh,
 }: AssessmentTableProps) {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
@@ -35,11 +44,27 @@ export default function AssessmentTable({
     );
   };
 
-  const handleChange = (id: number, field: string, value: string) => {
-    onUpdate?.(id, field, value);
+  const handleChange = async (id: number, field: string, value: string) => {
+    try {
+      const endpoint =
+        field === "review"
+          ? `/api/assessments/review-finding/${id}`
+          : `/api/assessments/update-finding/${id}`;
+
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      if (!res.ok) console.error(await res.text());
+      else onRefresh?.();
+    } catch (err) {
+      console.error("Update failed:", err);
+    }
   };
 
-  // Detect long description text
+
   useEffect(() => {
     const newLongRows: number[] = [];
     descriptionRefs.current.forEach((el, id) => {
@@ -49,11 +74,7 @@ export default function AssessmentTable({
   }, [findings]);
 
   if (!findings?.length)
-    return (
-      <p className="text-gray-500 text-center p-4">
-        No control findings available.
-      </p>
-    );
+    return <p className="text-gray-500 text-center p-4">No control findings available.</p>;
 
   return (
     <div className="overflow-x-auto bg-white border rounded-lg shadow">
@@ -85,25 +106,22 @@ export default function AssessmentTable({
                 <TableCell>{f.code}</TableCell>
                 <TableCell>{f.title}</TableCell>
 
-                {/* ---------- Description Cell ---------- */}
-                <TableCell className="max-w-[420px] text-gray-800 text-sm relative">
+                {/* ---------- Description ---------- */}
+                <TableCell className="max-w-[420px] text-gray-800 relative">
                   <div
                     ref={(el) => {
                       if (el) descriptionRefs.current.set(f.id, el);
+                      else descriptionRefs.current.delete(f.id);
                     }}
-                    className={`whitespace-pre-wrap break-words transition-all duration-300 pr-8 ${
-                      expanded
-                        ? "max-h-none"
-                        : "max-h-[85px] overflow-hidden relative"
+                    className={`whitespace-pre-wrap break-words transition-all pr-8 ${
+                      expanded ? "max-h-none" : "max-h-[85px] overflow-hidden"
                     }`}
-                    style={{ lineHeight: "1.4rem" }}
                   >
                     {f.description || "—"}
                     {!expanded && isLong && (
-                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+                      <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-white to-transparent" />
                     )}
                   </div>
-
                   {isLong && (
                     <button
                       onClick={() => toggleExpand(f.id)}
@@ -116,89 +134,112 @@ export default function AssessmentTable({
 
                 <TableCell>{f.domain}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{f.status}</Badge>
+                  <Badge variant="secondary">{f.status || "—"}</Badge>
                 </TableCell>
 
                 {/* ---------- Compliance ---------- */}
                 <TableCell>
-                  {mode === "review" ? (
-                    <select
-                      className="border p-1 rounded w-full"
-                      value={f.compliance}
-                      onChange={(e) =>
-                        handleChange(f.id, "compliance", e.target.value)
-                      }
-                    >
-                      <option value="">-- Select --</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                      <option value="Partially">Partially</option>
-                    </select>
-                  ) : (
-                    f.compliance || "—"
-                  )}
+                  <select
+                    className="border p-1 rounded w-full bg-white"
+                    value={f.compliance || ""}
+                    onChange={(e) => handleChange(f.id, "compliance", e.target.value)}
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Partially">Partially</option>
+                  </select>
                 </TableCell>
 
-                {/* ---------- Evidence Section ---------- */}
-                <TableCell>
+                {/* ---------- Evidence ---------- */}
+                <TableCell className="align-top">
                   {f.evidences?.length ? (
-                    <ul className="list-disc ml-4">
-                      {f.evidences.map((ev, i) => (
-                        <li key={i}>
-                          <a
-                            href={ev.fileUrl}
-                            target="_blank"
-                            className="text-blue-600 underline"
-                          >
-                            {ev.fileName}
-                          </a>{" "}
-                          <span className="text-xs text-gray-500">
-                            ({new Date(ev.uploadedAt).toLocaleDateString()})
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="flex flex-col gap-1">
+                      {/* Display only clean filename (remove UUID prefix before underscore) */}
+                      <a
+                        href={f.evidences[0].fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline text-sm font-medium truncate max-w-[180px]"
+                      >
+                        {decodeURIComponent(
+                          f.evidences[0].fileUrl
+                            .split("/")
+                            .pop()
+                            ?.replace(/^[0-9a-fA-F-]{8}(-[0-9a-fA-F-]{4}){3}-[0-9a-fA-F-]{12}_/, "") || 
+                            "Evidence File"
+                        )}
+                      </a>
+
+                      {/* Clickable “+N more” that opens the Evidence Drawer */}
+                      {f.evidences.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const btn = document.querySelector(
+                              `#drawer-trigger-${f.id} button`
+                            ) as HTMLButtonElement | null;
+                            btn?.click();
+                          }}
+                          className="text-xs text-blue-500 hover:underline text-left"
+                        >
+                          +{f.evidences.length - 1} more
+                        </button>
+                      )}
+
+                      {/* Hidden drawer trigger (identified by findingId) */}
+                      <div id={`drawer-trigger-${f.id}`}>
+                        <EvidenceDrawer findingId={f.id} onUploadSuccess={onRefresh} />
+                      </div>
+                    </div>
                   ) : (
-                    <span className="text-gray-500">No files</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-500 text-xs">No files</span>
+                      <EvidenceDrawer findingId={f.id} onUploadSuccess={onRefresh} />
+                    </div>
                   )}
                 </TableCell>
 
                 {/* ---------- Review ---------- */}
                 <TableCell>
-                  {mode === "review" ? (
-                    <select
-                      className="border p-1 rounded w-full"
-                      value={f.review || ""}
-                      onChange={(e) =>
-                        handleChange(f.id, "review", e.target.value)
-                      }
-                    >
-                      <option value="">-- Select --</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  ) : (
-                    f.review || "—"
-                  )}
+                  <select
+                    className="border p-1 rounded w-full bg-white"
+                    value={f.review || ""}
+                    onChange={(e) => handleChange(f.id, "review", e.target.value)}
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
                 </TableCell>
 
                 {/* ---------- Comments ---------- */}
                 <TableCell>
                   <Input
-                    placeholder="Add comments"
+                    placeholder="Add comment"
                     value={f.comments || ""}
-                    onChange={(e) =>
-                      handleChange(f.id, "comments", e.target.value)
-                    }
+                    onChange={(e) => handleChange(f.id, "comments", e.target.value)}
                   />
                 </TableCell>
 
-                <TableCell>{f.assignedTo || "Unassigned"}</TableCell>
+                {/* ---------- Assigned To ---------- */}
+                <TableCell>
+                  <select
+                    className="border p-1 rounded w-full bg-white"
+                    value={f.assignedTo || ""}
+                    onChange={(e) => handleChange(f.id, "assignedTo", e.target.value)}
+                  >
+                    <option value="">-- Assign To --</option>
+                    {assignableUsers.map((u) => (
+                      <option key={u.id} value={u.fullName ?? ""}>
+                        {u.fullName ?? "Unnamed"}
+                      </option>
+                    ))}
+                  </select>
+                </TableCell>
+
                 <TableCell>{f.createdBy || "—"}</TableCell>
                 <TableCell>
-                  {f.modifiedDate
-                    ? new Date(f.modifiedDate).toLocaleString()
-                    : "—"}
+                  {f.modifiedDate ? new Date(f.modifiedDate).toLocaleString() : "—"}
                 </TableCell>
               </TableRow>
             );
