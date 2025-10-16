@@ -99,6 +99,10 @@ function mapFinding(raw: unknown): Finding {
     evidences: toEvidenceList(
       (source.evidences as unknown) ?? (source.Evidences as unknown)
     ),
+    commentsThread:
+      Array.isArray(source.commentsThread) || Array.isArray(source.CommentsThread)
+        ? (source.commentsThread as any[]) || (source.CommentsThread as any[])
+        : [],
   } as Finding;
 }
 

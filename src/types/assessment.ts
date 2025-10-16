@@ -5,6 +5,15 @@ export interface Evidence {
   uploadedAt: string;
 }
 
+/* ---------- Comment (For Findings) ---------- */
+export interface FindingComment {
+  id: number;
+  text: string;
+  user: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 /* ---------- Control Finding ---------- */
 export interface Finding {
   id: number;
@@ -18,7 +27,8 @@ export interface Finding {
 
   evidences?: Evidence[];
   evidenceNote?: string;
-  comments?: string;
+  commentsThread?: FindingComment[];  
+  newComment?: string; 
   review?: string;                // Used in review mode
   assignedTo?: string;
   createdBy?: string;

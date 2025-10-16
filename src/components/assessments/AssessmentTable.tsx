@@ -9,10 +9,12 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+//import { Input } from "@/components/ui/input";
 import React, { useState, useRef, useEffect } from "react";
 import { Finding } from "@/types/assessment";
 import EvidenceDrawer from "@/components/assessments/EvidenceDrawer";
+import CommentSection from "@/components/assessments/CommentSection";
+
 
 
 interface AssessmentTableProps {
@@ -37,6 +39,7 @@ export default function AssessmentTable({
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
   const descriptionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
 
   const toggleExpand = (id: number) => {
     setExpandedRows((prev) =>
@@ -78,7 +81,7 @@ export default function AssessmentTable({
 
   return (
     <div className="overflow-x-auto bg-white border rounded-lg shadow">
-      <Table className="w-full border-collapse text-sm min-w-[1200px]">
+      <Table className="w-full border-collapse text-sm min-w-[1800px]">
         <TableHeader>
           <TableRow>
             <TableHead>Code</TableHead>
@@ -213,12 +216,50 @@ export default function AssessmentTable({
                 </TableCell>
 
                 {/* ---------- Comments ---------- */}
-                <TableCell>
-                  <Input
-                    placeholder="Add comment"
-                    value={f.comments || ""}
-                    onChange={(e) => handleChange(f.id, "comments", e.target.value)}
-                  />
+                <TableCell className="align-top">
+                  <div className="space-y-1 mb-2">
+                    {f.commentsThread && f.commentsThread.length > 0 ? (
+                      <>
+                        {/* Show the latest comment */}
+                        {f.commentsThread.slice(-1).map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="bg-blue-50 border border-blue-200 rounded-md p-2 text-xs shadow-sm"
+                          >
+                            <p className="text-gray-900 leading-snug">{comment.text}</p>
+                            <p className="text-[10px] text-gray-500 mt-1">
+                              {comment.user} • {new Date(comment.createdAt).toLocaleString()}
+                              {comment.updatedAt && (
+                                <span className="italic text-gray-400 ml-1">(edited)</span>
+                              )}
+                            </p>
+                          </div>
+                        ))}
+
+                        {/* “+N more” toggle (if multiple comments exist) */}
+                        {f.commentsThread.length > 1 && (
+                          <p
+                            className="text-[11px] text-blue-600 hover:underline cursor-pointer mt-1"
+                            onClick={() => {
+                              const btn = document.querySelector(
+                                `#comment-drawer-${f.id} button`
+                              ) as HTMLButtonElement | null;
+                              btn?.click();
+                            }}
+                          >
+                            +{f.commentsThread.length - 1} more
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-gray-400 italic">No comments yet</p>
+                    )}
+                  </div>
+
+                  {/* Hidden Comment Drawer Trigger */}
+                  <div id={`comment-drawer-${f.id}`}>
+                    <CommentSection findingId={f.id} onRefresh={onRefresh ?? (() => {})} />
+                  </div>
                 </TableCell>
 
                 {/* ---------- Assigned To ---------- */}
@@ -246,6 +287,7 @@ export default function AssessmentTable({
           })}
         </TableBody>
       </Table>
+      
     </div>
   );
 }

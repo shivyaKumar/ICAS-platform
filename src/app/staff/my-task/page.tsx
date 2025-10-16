@@ -1,168 +1,135 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-/* ---------------- Types ---------------- */
-type Status = "Assigned" | "Changes Requested" | "Submitted" | "Completed" | string;
-
-type Assessment = {
-  id: string;
+type AssessmentItem = {
+  id: number;
   framework: string;
-  branch: string;   // ✅ now branch instead of division
-  status: Status;
+  division?: string | null;
+  branch?: string | null;
+  location?: string | null;
+  createdBy?: string | null;
+  assessmentDate?: string | null;
+  dueDate?: string | null;
+  progressRate?: number | null;
 };
 
-/* -------------- Small helpers -------------- */
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
-}
-function str(v: unknown, fb = ""): string {
-  return typeof v === "string" ? v : fb;
-}
+const formatDate = (v?: string | null) => {
+  if (!v) return "-";
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? v : d.toISOString().slice(0, 10);
+};
 
-/* Optional local filter by branch */
-function getLocalBranch(): string | null {
-  if (typeof window === "undefined") return null;
-  const v = window.localStorage.getItem("user_branch");
-  return v && v.trim().length > 0 ? v.trim() : null;
-}
+const formatProgress = (v?: number | null) => {
+  if (v == null) return "0% Complete";
+  const rounded = Math.round(v * 10) / 10;
+  return `${rounded}% Complete`;
+};
 
 export default function StaffMyTasksPage() {
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [items, setItems] = useState<AssessmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE?.trim() ?? "";
-  const useMock = apiBase.length === 0;
-
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
+    const load = async () => {
       try {
         setLoading(true);
-        setError(null);
-
-        if (useMock) {
-          const mock: Assessment[] = [
-            { id: "A-101", framework: "ISO 27001", branch: "Max Value", status: "Assigned" },
-            { id: "A-102", framework: "NIST CSF", branch: "Max Value", status: "Changes Requested" },
-            { id: "A-201", framework: "GDPR", branch: "Superfresh", status: "Assigned" },
-          ];
-          if (!cancelled) setAssessments(mock);
-          return;
-        }
-
-        const base = apiBase.replace(/\/+$/, "");
-        const url = `${base}/assessments?branchId=me&activeOnly=true`; // branchId instead of divisionId
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error(`Failed to load (${res.status})`);
-
-        const raw: unknown = await res.json();
-        const items: Assessment[] = Array.isArray(raw)
-          ? raw.map((a, i) => {
-              if (!isRecord(a)) return { id: String(i + 1), framework: "", branch: "", status: "Assigned" };
-              return {
-                id: str(a.id, String(i + 1)),
-                framework: str(a.frameworkName ?? a.framework ?? a.name),
-                branch: str(a.branchName ?? a.branch),   //pick branchName
-                status: str(a.status, "Assigned"),
-              };
-            })
-          : [];
-
-        if (!cancelled) setAssessments(items);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Unable to load");
+        const res = await fetch("/api/my-task", { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as AssessmentItem[];
+        setItems(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load assessments", err);
+        setError("Unable to load assessments.");
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
     };
-  }, [apiBase, useMock]);
+    load();
+  }, []);
 
-  const actionable = useMemo(
-    () => assessments.filter((a) => a.status === "Assigned" || a.status === "Changes Requested"),
-    [assessments]
-  );
+  const content = useMemo(() => {
+    if (loading)
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-gray-500">
+            Loading...
+          </td>
+        </tr>
+      );
 
-  const myBranch = getLocalBranch();
-  const mine = useMemo(() => {
-    if (!myBranch) return actionable;
-    return actionable.filter((a) => a.branch.toLowerCase() === myBranch.toLowerCase());
-  }, [actionable, myBranch]);
+    if (error)
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-red-600">
+            {error}
+          </td>
+        </tr>
+      );
 
-  const StatusBadge = ({ s }: { s: string }) => {
-    switch (s) {
-      case "Assigned":
-        return <Badge className="bg-yellow-100 text-yellow-800">Assigned</Badge>;
-      case "Changes Requested":
-        return <Badge className="bg-red-100 text-red-800">Changes Requested</Badge>;
-      case "Submitted":
-        return <Badge className="bg-blue-100 text-blue-800">Submitted</Badge>;
-      case "Completed":
-        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
-      default:
-        return <Badge variant="secondary">{s}</Badge>;
-    }
-  };
+    if (!items.length)
+      return (
+        <tr>
+          <td colSpan={8} className="px-5 py-8 text-center text-gray-400 italic">
+            No assessments found for your branch.
+          </td>
+        </tr>
+      );
+
+    return items.map((item) => (
+      <tr key={item.id} className="border-t">
+        <td className="px-5 py-3 font-medium">{item.framework}</td>
+        <td className="px-5 py-3">{item.division || "-"}</td>
+        <td className="px-5 py-3">{item.branch || "-"}</td>
+        <td className="px-5 py-3">{item.location || "-"}</td>
+        <td className="px-5 py-3">{item.createdBy || "-"}</td>
+        <td className="px-5 py-3">{formatDate(item.assessmentDate)}</td>
+        <td className="px-5 py-3">{formatDate(item.dueDate)}</td>
+        <td className="px-5 py-3">
+          <Badge className="bg-blue-100 text-blue-700">{formatProgress(item.progressRate)}</Badge>
+        </td>
+        <td className="px-5 py-3">
+          <Button asChild size="sm" variant="secondary">
+            <Link href={`/staff/assessments/${encodeURIComponent(String(item.id))}`}>Open</Link>
+          </Button>
+        </td>
+      </tr>
+    ));
+  }, [items, loading, error]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">My Tasks</h1>
-        <p className="text-sm md:text-base text-gray-700">
-          Items currently assigned to your branch that need your action.
-        </p>
-      </div>
-
-      <Card className="bg-white shadow-md rounded-xl border border-gray-100">
+    <div className="p-6">
+      <Card className="bg-white">
         <CardHeader>
-          <CardTitle className="text-base md:text-lg">Open Items</CardTitle>
+          <CardTitle className="text-2xl">My Assessments</CardTitle>
+          <p className="text-sm text-gray-600">
+            View all active assessments assigned to your branch.
+          </p>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="py-10 text-center text-sm text-gray-500">Loading…</div>
-          ) : error ? (
-            <div className="py-10 text-center text-sm text-red-600">{error}</div>
-          ) : mine.length === 0 ? (
-            <div className="py-10 text-center text-sm text-gray-500 italic">No tasks</div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left">
-                  <tr className="text-gray-700">
-                    <th className="px-5 py-3">Framework</th>
-                    <th className="px-5 py-3">Branch</th> 
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mine.map((a) => (
-                    <tr key={a.id} className="border-t">
-                      <td className="px-5 py-3 font-medium">{a.framework}</td>
-                      <td className="px-5 py-3">{a.branch}</td> {/*now branch */}
-                      <td className="px-5 py-3"><StatusBadge s={a.status} /></td>
-                      <td className="px-5 py-3">
-                        <Button asChild size="sm" variant="secondary">
-                          <Link href={`/staff/assessments/${encodeURIComponent(a.id)}`}>Open</Link>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="rounded-xl border overflow-auto">
+            <table className="w-full min-w-[960px] text-sm">
+              <thead className="bg-gray-50 text-left">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Framework</th>
+                  <th className="px-5 py-3 font-semibold">Division</th>
+                  <th className="px-5 py-3 font-semibold">Branch</th>
+                  <th className="px-5 py-3 font-semibold">Location</th>
+                  <th className="px-5 py-3 font-semibold">Created By</th>
+                  <th className="px-5 py-3 font-semibold">Assessment Date</th>
+                  <th className="px-5 py-3 font-semibold">Due Date</th>
+                  <th className="px-5 py-3 font-semibold">Progress</th>
+                  <th className="px-5 py-3 font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody>{content}</tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

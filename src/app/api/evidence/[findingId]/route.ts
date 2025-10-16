@@ -4,11 +4,17 @@ import { NextResponse } from "next/server";
 const BASE = process.env.API_BASE_URL || "http://127.0.0.1:5275";
 
 /* ---------- GET: List all evidence for a finding ---------- */
-export async function GET(req: Request, { params }: { params: { findingId: string } }) {
+export async function GET(
+  req: Request,
+  context: { params: Promise<{ findingId: string }> }
+) {
   try {
+    // ✅ await params before using it
+    const { findingId } = await context.params;
+
     const token = (await cookies()).get("icas_auth")?.value ?? "";
 
-    const res = await fetch(`${BASE}/api/evidence/${params.findingId}`, {
+    const res = await fetch(`${BASE}/api/evidence/${findingId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
