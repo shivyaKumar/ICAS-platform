@@ -4,10 +4,14 @@ import { NextResponse } from "next/server";
 const BASE = process.env.API_BASE_URL || "http://127.0.0.1:5275";
 
 /* ---------- GET: Fetch single assessment ---------- */
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  _: Request,
+  context: { params: Promise<{ id: string }> } // ✅ params is a Promise
+) {
   try {
+    const { id } = await context.params; // ✅ await it
     const token = (await cookies()).get("icas_auth")?.value;
-    const endpoint = `${BASE}/api/assessments/${params.id}`;
+    const endpoint = `${BASE}/api/assessments/${id}`;
 
     console.log("Fetching single assessment:", endpoint);
 
@@ -19,13 +23,13 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       cache: "no-store",
     });
 
+    const text = await res.text();
+
     if (!res.ok) {
-      const text = await res.text();
       console.error(`Backend responded ${res.status}:`, text);
       return NextResponse.json({ success: false, message: text }, { status: res.status });
     }
 
-    const text = await res.text();
     console.log("Single assessment fetched.");
     return new Response(text, { status: res.status });
   } catch (err) {
@@ -38,11 +42,15 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 /* ---------- PUT: Update assessment ---------- */
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  req: Request,
+  context: { params: Promise<{ id: string }> } // ✅ same here
+) {
   try {
+    const { id } = await context.params; // ✅ await again
     const token = (await cookies()).get("icas_auth")?.value;
     const body = await req.json();
-    const endpoint = `${BASE}/api/assessments/${params.id}`;
+    const endpoint = `${BASE}/api/assessments/${id}`;
 
     const res = await fetch(endpoint, {
       method: "PUT",
@@ -53,13 +61,12 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       body: JSON.stringify(body),
     });
 
+    const text = await res.text();
     if (!res.ok) {
-      const text = await res.text();
       console.error(`Backend update failed ${res.status}:`, text);
       return NextResponse.json({ success: false, message: text }, { status: res.status });
     }
 
-    const text = await res.text();
     console.log("Assessment updated successfully.");
     return new Response(text, { status: res.status });
   } catch (err) {

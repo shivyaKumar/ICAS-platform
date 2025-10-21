@@ -166,24 +166,30 @@ export default function AssessmentDetailClient() {
 
       const me = await fetchUser();
       const userId = me.id ?? "";
+      const role = me.role ?? "";
 
       const detailPath = userId
         ? `/api/assessments/${numericId}?userId=${encodeURIComponent(userId)}`
         : `/api/assessments/${numericId}`;
 
-      const [detailRes, usersRes, branchesRes] = await Promise.all([
-        fetch(detailPath, { credentials: "include", cache: "no-store" }),
-        fetch("/api/users", { credentials: "include", cache: "no-store" }),
-        fetch("/api/branches", { credentials: "include", cache: "no-store" }),
-      ]);
-
+      // Always fetch assessment
+      const detailRes = await fetch(detailPath, { credentials: "include", cache: "no-store" });
       if (!detailRes.ok) throw new Error(await detailRes.text());
-      if (!usersRes.ok) throw new Error(await usersRes.text());
-      if (!branchesRes.ok) throw new Error(await branchesRes.text());
-
       const detailData = await detailRes.json();
-      const usersData = await usersRes.json();
-      const branches = await branchesRes.json();
+
+      // Only admins should fetch users/branches
+      let usersData: any[] = [];
+      let branches: any[] = [];
+
+      if (role !== "Standard User") {
+        const [usersRes, branchesRes] = await Promise.all([
+          fetch("/api/users", { credentials: "include", cache: "no-store" }),
+          fetch("/api/branches", { credentials: "include", cache: "no-store" }),
+        ]);
+
+        if (usersRes.ok) usersData = await usersRes.json();
+        if (branchesRes.ok) branches = await branchesRes.json();
+      }
 
       /* ------------------ Build Assignable User List ------------------ */
       const branchLookup = new Map<number, any>();
