@@ -151,6 +151,7 @@ export default function AssessmentDetailClient() {
   const [assignableUsers, setAssignableUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
 
   const loadAssessment = useCallback(async () => {
     console.log("Reloading assessment from server...");
@@ -165,6 +166,7 @@ export default function AssessmentDetailClient() {
       setError(null);
 
       const me = await fetchUser();
+      setUserRole(me.role ?? "");   
       const userId = me.id ?? "";
       const role = me.role ?? "";
 
@@ -326,6 +328,7 @@ export default function AssessmentDetailClient() {
           <AssessmentTable
             findings={assessment.findings ?? []}
             assignableUsers={assignableUsers}
+            userRole={userRole}
             onRefresh={loadAssessment}
           />
         </CardContent>

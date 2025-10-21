@@ -21,6 +21,7 @@ interface AssessmentTableProps {
   findings: Finding[];
   assignableUsers?: UserOption[];
   onRefresh?: () => void;
+  userRole?: string;
 }
 // ---------- Shared Type for Assignable Users ----------
 export type UserOption = {
@@ -35,6 +36,7 @@ export default function AssessmentTable({
   findings,
   assignableUsers = [],
   onRefresh,
+  userRole = "",  
 }: AssessmentTableProps) {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
@@ -142,16 +144,20 @@ export default function AssessmentTable({
 
                 {/* ---------- Compliance ---------- */}
                 <TableCell>
-                  <select
-                    className="border p-1 rounded w-full bg-white"
-                    value={f.compliance || ""}
-                    onChange={(e) => handleChange(f.id, "compliance", e.target.value)}
-                  >
-                    <option value="">-- Select --</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                    <option value="Partially">Partially</option>
-                  </select>
+                  {userRole === "IT Admin" || userRole === "Super Admin" ? (
+                    <select
+                      className="border p-1 rounded w-full bg-white"
+                      value={f.compliance || ""}
+                      onChange={(e) => handleChange(f.id, "compliance", e.target.value)}
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                      <option value="Partially">Partially</option>
+                    </select>
+                  ) : (
+                    <span>{f.compliance || "N/A"}</span>
+                  )}
                 </TableCell>
 
                 {/* ---------- Evidence ---------- */}
@@ -204,15 +210,19 @@ export default function AssessmentTable({
 
                 {/* ---------- Review ---------- */}
                 <TableCell>
-                  <select
-                    className="border p-1 rounded w-full bg-white"
-                    value={f.review || ""}
-                    onChange={(e) => handleChange(f.id, "review", e.target.value)}
-                  >
-                    <option value="">-- Select --</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
+                  {userRole === "IT Admin" || userRole === "Super Admin" ? (
+                    <select
+                      className="border p-1 rounded w-full bg-white"
+                      value={f.review || ""}
+                      onChange={(e) => handleChange(f.id, "review", e.target.value)}
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  ) : (
+                    <span>{f.review || "Pending"}</span>
+                  )}
                 </TableCell>
 
                 {/* ---------- Comments ---------- */}
