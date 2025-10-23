@@ -119,19 +119,33 @@ async function fetchUser(): Promise<{
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
 
-    if (Array.isArray(data)) {
-      const result: any = {};
-      for (const claim of data) {
-        if (claim.type?.includes("identity/claims/role")) result.role = claim.value;
-        if (claim.type?.includes("nameidentifier")) result.id = claim.value;
-        if (claim.type?.includes("email")) result.email = claim.value;
-        if (claim.type?.includes("givenname")) result.firstName = claim.value;
-        if (claim.type?.includes("surname")) result.lastName = claim.value;
-      }
-      return result;
+    // --- Handle your backend shape ---
+    let role: string | undefined;
+
+    // Check for roles array
+    if (Array.isArray(data.roles) && data.roles.length > 0) {
+      role = data.roles[0];
+    }
+    // Fallback: try extracting from claims array if roles missing
+    else if (Array.isArray(data.claims)) {
+      const roleClaim = data.claims.find(
+        (c: any) =>
+          c.Type?.includes("identity/claims/role") ||
+          c.type?.includes("identity/claims/role")
+      );
+      if (roleClaim) role = roleClaim.Value || roleClaim.value;
     }
 
-    return data;
+    const result = {
+      id: data.userId,
+      email: data.email,
+      role: role ?? "Standard User", // fallback just in case
+      firstName: data.firstName ?? null,
+      lastName: data.lastName ?? null,
+    };
+
+    console.log(" Role extracted from /api/me:", result.role);
+    return result;
   } catch (err) {
     console.error("Failed to fetch user info:", err);
     return {};

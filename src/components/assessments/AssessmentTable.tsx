@@ -41,6 +41,10 @@ export default function AssessmentTable({
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
   const descriptionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const normalizeRole = (value?: string) =>
+    value?.toLowerCase().replace(/[\s_-]+/g, "") ?? "";
+  const normalizedRole = normalizeRole(userRole);
+  const canEdit = ["itadmin", "superadmin"].includes(normalizedRole);
 
 
   const toggleExpand = (id: number) => {
@@ -144,7 +148,7 @@ export default function AssessmentTable({
 
                 {/* ---------- Compliance ---------- */}
                 <TableCell>
-                  {userRole === "IT Admin" || userRole === "Super Admin" ? (
+                  {canEdit ? (
                     <select
                       className="border p-1 rounded w-full bg-white"
                       value={f.compliance || ""}
@@ -210,7 +214,7 @@ export default function AssessmentTable({
 
                 {/* ---------- Review ---------- */}
                 <TableCell>
-                  {userRole === "IT Admin" || userRole === "Super Admin" ? (
+                  {canEdit ? (
                     <select
                       className="border p-1 rounded w-full bg-white"
                       value={f.review || ""}

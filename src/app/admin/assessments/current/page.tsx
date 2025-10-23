@@ -41,7 +41,7 @@ export default function CurrentAssessmentsPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("/api/assessments?status=Active", { cache: "no-store" });
+      const response = await fetch("/api/assessments?isClosed=false", { cache: "no-store" });
       if (!response.ok) throw new Error(await response.text());
 
       const payload = (await response.json()) as AssessmentListItem[];

@@ -22,6 +22,7 @@ interface Assessment {
 export default function AssessmentDetailsPage() {
   const { id } = useParams();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [userRole, setUserRole] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,15 +32,59 @@ export default function AssessmentDetailsPage() {
     const fetchAssessment = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/assessments/${id}`, {
-          cache: "no-store",
-          credentials: "include",
-        });
+        const [assessmentRes, meRes] = await Promise.all([
+          fetch(`/api/assessments/${id}`, {
+            cache: "no-store",
+            credentials: "include",
+          }),
+          fetch("/api/me", { cache: "no-store", credentials: "include" }),
+        ]);
 
-        if (!res.ok) throw new Error(`Failed to fetch assessment: ${res.status}`);
+        if (!assessmentRes.ok)
+          throw new Error(`Failed to fetch assessment: ${assessmentRes.status}`);
 
-        const data: Assessment = await res.json();
-        setAssessment(data);
+        const assessmentData: Assessment = await assessmentRes.json();
+        setAssessment(assessmentData);
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          let role = "";
+
+          if (Array.isArray(meData)) {
+            for (const claim of meData) {
+              if (claim?.type?.toLowerCase().includes("identity/claims/role")) {
+                role = claim?.value ?? "";
+                break;
+              }
+            }
+          } else if (meData && typeof meData === "object") {
+            if (Array.isArray((meData as { roles?: unknown }).roles) && (meData as { roles: string[] }).roles.length) {
+              role = (meData as { roles: string[] }).roles[0] ?? "";
+            }
+            if (!role && Array.isArray((meData as { Roles?: unknown }).Roles) && (meData as { Roles: string[] }).Roles.length) {
+              role = (meData as { Roles: string[] }).Roles[0] ?? "";
+            }
+            role =
+              meData.role ??
+              meData.Role ??
+              meData.userRole ??
+              meData.UserRole ??
+              "";
+
+            if (!role && Array.isArray((meData as { claims?: unknown }).claims)) {
+              for (const claim of (meData as { claims: any[] }).claims) {
+                if (claim?.type?.toLowerCase().includes("identity/claims/role")) {
+                  role = claim?.value ?? "";
+                  break;
+                }
+              }
+            }
+          }
+
+          setUserRole(typeof role === "string" ? role : "");
+        } else {
+          setUserRole("");
+        }
       } catch (err) {
         console.error("Error fetching assessment:", err);
         setError("Unable to load assessment details.");
@@ -98,7 +143,10 @@ export default function AssessmentDetailsPage() {
           <CardTitle>Control Findings</CardTitle>
         </CardHeader>
         <CardContent>
-          <AssessmentTable findings={assessment.findings || []} mode="review" />
+          <AssessmentTable
+            findings={assessment.findings || []}
+            userRole={userRole}
+          />
         </CardContent>
       </Card>
     </div>
