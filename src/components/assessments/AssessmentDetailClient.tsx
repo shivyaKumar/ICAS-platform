@@ -84,6 +84,8 @@ function mapFinding(raw: unknown): Finding {
       getString("assignedTo") ??
       getString("assignedAdmin") ??
       getString("assignedUser"),
+    assignedToEmail:
+      getString("assignedToUserEmail"),
     assignedToUserId:
       getString("assignedToUserId") ??
       getString("assignedUserId") ??
@@ -197,7 +199,12 @@ export default function AssessmentDetailClient() {
       let usersData: any[] = [];
       let branches: any[] = [];
 
-      if (role !== "Standard User") {
+      if (
+        role === "Admin" ||
+        role === "IT Admin" ||
+        role === "SuperAdmin" ||
+        role === "Standard User"
+      ) {
         const [usersRes, branchesRes] = await Promise.all([
           fetch("/api/users", { credentials: "include", cache: "no-store" }),
           fetch("/api/branches", { credentials: "include", cache: "no-store" }),
@@ -206,6 +213,7 @@ export default function AssessmentDetailClient() {
         if (usersRes.ok) usersData = await usersRes.json();
         if (branchesRes.ok) branches = await branchesRes.json();
       }
+
 
       /* ------------------ Build Assignable User List ------------------ */
       const branchLookup = new Map<number, any>();
@@ -273,7 +281,11 @@ export default function AssessmentDetailClient() {
         status: detailData.status,
         createdBy: detailData.createdBy,
         createdAt: detailData.createdAt ?? new Date().toISOString(),
+        dueDate: detailData.dueDate,
+        closedBy: detailData.closedBy,
+        closedAt: detailData.closedAt,
         modifiedDate: detailData.modifiedDate,
+        assessmentScope: detailData.assessmentScope,
         findings: findingsRaw.map(mapFinding),
       } as Assessment;
 
@@ -317,6 +329,12 @@ export default function AssessmentDetailClient() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm text-muted-foreground">
+          {assessment.assessmentScope && (
+            <span>
+              <strong className="text-foreground">Scope:</strong>{" "}
+              {assessment.assessmentScope}
+            </span>
+          )}
           {assessment.location && (
             <span>
               <strong className="text-foreground">Location:</strong>{" "}
@@ -331,6 +349,31 @@ export default function AssessmentDetailClient() {
             <strong className="text-foreground">Created At:</strong>{" "}
             {new Date(assessment.createdAt).toLocaleString()}
           </span>
+
+          {assessment.dueDate && (
+            <span>
+              <strong className="text-foreground">Due Date:</strong>{" "}
+              {new Date(assessment.dueDate).toLocaleDateString()}
+            </span>
+          )}
+
+          {/* Show Closed By / Closed At only if completed */}
+          {assessment.status === "Completed" && (
+            <>
+              {assessment.closedBy && (
+                <span>
+                  <strong className="text-foreground">Closed By:</strong>{" "}
+                  {assessment.closedBy}
+                </span>
+              )}
+              {assessment.closedAt && (
+                <span>
+                  <strong className="text-foreground">Closed At:</strong>{" "}
+                  {new Date(assessment.closedAt).toLocaleString()}
+                </span>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

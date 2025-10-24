@@ -9,20 +9,18 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-//import { Input } from "@/components/ui/input";
 import React, { useState, useRef, useEffect } from "react";
 import { Finding } from "@/types/assessment";
 import EvidenceDrawer from "@/components/assessments/EvidenceDrawer";
 import CommentSection from "@/components/assessments/CommentSection";
 
-
-
 interface AssessmentTableProps {
   findings: Finding[];
   assignableUsers?: UserOption[];
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
   userRole?: string;
 }
+
 // ---------- Shared Type for Assignable Users ----------
 export type UserOption = {
   id: string;
@@ -36,16 +34,22 @@ export default function AssessmentTable({
   findings,
   assignableUsers = [],
   onRefresh,
-  userRole = "",  
+  userRole = "",
 }: AssessmentTableProps) {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
+  const [localFindings, setLocalFindings] = useState<Finding[]>(findings);
   const descriptionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
   const normalizeRole = (value?: string) =>
     value?.toLowerCase().replace(/[\s_-]+/g, "") ?? "";
   const normalizedRole = normalizeRole(userRole);
   const canEdit = ["itadmin", "superadmin"].includes(normalizedRole);
 
+  // 🔁 Keep local state synced with parent changes
+  useEffect(() => {
+    setLocalFindings(findings);
+  }, [findings]);
 
   const toggleExpand = (id: number) => {
     setExpandedRows((prev) =>
@@ -53,8 +57,19 @@ export default function AssessmentTable({
     );
   };
 
+  // ✅ Optimistic + Synced Update
   const handleChange = async (id: number, field: string, value: string) => {
     try {
+      // 1️⃣ Instantly update UI
+      setLocalFindings((prev) =>
+        prev.map((f) =>
+          f.id === id
+            ? { ...f, [field]: value, modifiedDate: new Date().toISOString() }
+            : f
+        )
+      );
+
+      // 2️⃣ Update DB
       const endpoint =
         field === "review"
           ? `/api/assessments/review-finding/${id}`
@@ -66,13 +81,16 @@ export default function AssessmentTable({
         body: JSON.stringify({ [field]: value }),
       });
 
-      if (!res.ok) console.error(await res.text());
-      else onRefresh?.();
+      if (!res.ok) throw new Error(await res.text());
+
+      // 3️⃣ Reload from server for fresh confirmation
+      await onRefresh?.();
     } catch (err) {
       console.error("Update failed:", err);
+      // Optional: rollback if error occurs
+      await onRefresh?.();
     }
   };
-
 
   useEffect(() => {
     const newLongRows: number[] = [];
@@ -80,9 +98,9 @@ export default function AssessmentTable({
       if (el && el.scrollHeight > 85) newLongRows.push(id);
     });
     setLongRows(newLongRows);
-  }, [findings]);
+  }, [localFindings]);
 
-  if (!findings?.length)
+  if (!localFindings?.length)
     return <p className="text-gray-500 text-center p-4">No control findings available.</p>;
 
   return (
@@ -106,7 +124,7 @@ export default function AssessmentTable({
         </TableHeader>
 
         <TableBody>
-          {findings.map((f) => {
+          {localFindings.map((f) => {
             const expanded = expandedRows.includes(f.id);
             const isLong = longRows.includes(f.id);
 
@@ -168,7 +186,6 @@ export default function AssessmentTable({
                 <TableCell className="align-top">
                   {f.evidences?.length ? (
                     <div className="flex flex-col gap-1">
-                      {/* Display only clean filename (remove UUID prefix before underscore) */}
                       <a
                         href={f.evidences[0].fileUrl}
                         target="_blank"
@@ -179,12 +196,12 @@ export default function AssessmentTable({
                           f.evidences[0].fileUrl
                             .split("/")
                             .pop()
-                            ?.replace(/^[0-9a-fA-F-]{8}(-[0-9a-fA-F-]{4}){3}-[0-9a-fA-F-]{12}_/, "") || 
-                            "Evidence File"
+                            ?.replace(
+                              /^[0-9a-fA-F-]{8}(-[0-9a-fA-F-]{4}){3}-[0-9a-fA-F-]{12}_/,
+                              ""
+                            ) || "Evidence File"
                         )}
                       </a>
-
-                      {/* Clickable “+N more” that opens the Evidence Drawer */}
                       {f.evidences.length > 1 && (
                         <button
                           onClick={() => {
@@ -198,8 +215,6 @@ export default function AssessmentTable({
                           +{f.evidences.length - 1} more
                         </button>
                       )}
-
-                      {/* Hidden drawer trigger (identified by findingId) */}
                       <div id={`drawer-trigger-${f.id}`}>
                         <EvidenceDrawer findingId={f.id} onUploadSuccess={onRefresh} />
                       </div>
@@ -234,7 +249,6 @@ export default function AssessmentTable({
                   <div className="space-y-1 mb-2">
                     {f.commentsThread && f.commentsThread.length > 0 ? (
                       <>
-                        {/* Show the latest comment */}
                         {f.commentsThread.slice(-1).map((comment) => (
                           <div
                             key={comment.id}
@@ -249,8 +263,6 @@ export default function AssessmentTable({
                             </p>
                           </div>
                         ))}
-
-                        {/* “+N more” toggle (if multiple comments exist) */}
                         {f.commentsThread.length > 1 && (
                           <p
                             className="text-[11px] text-blue-600 hover:underline cursor-pointer mt-1"
@@ -269,8 +281,6 @@ export default function AssessmentTable({
                       <p className="text-[11px] text-gray-400 italic">No comments yet</p>
                     )}
                   </div>
-
-                  {/* Hidden Comment Drawer Trigger */}
                   <div id={`comment-drawer-${f.id}`}>
                     <CommentSection findingId={f.id} onRefresh={onRefresh ?? (() => {})} />
                   </div>
@@ -280,13 +290,13 @@ export default function AssessmentTable({
                 <TableCell>
                   <select
                     className="border p-1 rounded w-full bg-white"
-                    value={f.assignedTo || ""}
+                    value={f.assignedToEmail || f.assignedTo || ""}
                     onChange={(e) => handleChange(f.id, "assignedTo", e.target.value)}
                   >
                     <option value="">-- Assign To --</option>
                     {assignableUsers.map((u) => (
-                      <option key={u.id} value={u.fullName ?? ""}>
-                        {u.fullName ?? "Unnamed"}
+                      <option key={u.id} value={u.email ?? ""}>
+                        {u.fullName ?? u.email ?? "Unnamed"}
                       </option>
                     ))}
                   </select>
@@ -301,7 +311,6 @@ export default function AssessmentTable({
           })}
         </TableBody>
       </Table>
-      
     </div>
   );
 }

@@ -31,6 +31,8 @@ export interface Finding {
   newComment?: string; 
   review?: string;                // Used in review mode
   assignedTo?: string;
+  assignedToEmail?: string | null; 
+  assignedToUserId?: string | null; 
   createdBy?: string;
   modifiedDate?: string;
   availableUsers?: { id: number; userName: string }[];
@@ -53,6 +55,8 @@ export interface Assessment {
   assessmentScope?: string;
   assessmentDate?: string;
   dueDate?: string;
+  closedBy?: string;
+  closedAt?: string;
   progressRate?: number;
   status?: string;                // Optional because progress determines completion
   findings: Finding[];

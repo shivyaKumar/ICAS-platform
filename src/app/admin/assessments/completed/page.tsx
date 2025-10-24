@@ -2,9 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type CompletedAssessment = {
   id: number;
@@ -32,21 +39,7 @@ function normalizeNumber(value: unknown): number | null {
 }
 
 function mapCompleted(raw: unknown, index: number): CompletedAssessment {
-  if (!raw || typeof raw !== "object") {
-    return {
-      id: index + 1,
-      framework: "",
-      division: "",
-      branch: "",
-      location: "",
-      status: "Completed",
-      closedAt: "",
-      closedBy: "",
-      progressRate: null,
-    };
-  }
-
-  const item = raw as Record<string, unknown>;
+  const item = (raw ?? {}) as Record<string, unknown>;
   return {
     id: Number(item.id) || index + 1,
     framework: normalizeString(item.framework),
@@ -62,13 +55,13 @@ function mapCompleted(raw: unknown, index: number): CompletedAssessment {
 
 function formatDate(value: string): string {
   if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : d.toLocaleString();
 }
 
-function formatProgress(progress: number | null): string {
-  if (progress == null) return "—";
-  return `${Math.round(progress)}%`;
+function formatProgress(p: number | null): string {
+  if (p == null) return "—";
+  return `${Math.round(p)}%`;
 }
 
 export default function AdminCompletedAssessmentsPage() {
@@ -78,36 +71,24 @@ export default function AdminCompletedAssessmentsPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       try {
         setLoading(true);
         setError(null);
-
         const res = await fetch("/api/assessments/completed", { cache: "no-store" });
         if (!res.ok) throw new Error(await res.text());
-
         const data: unknown = await res.json();
         if (cancelled) return;
-
         const parsed = Array.isArray(data)
           ? data.map(mapCompleted).filter((x) => x.status.toLowerCase() === "completed")
           : [];
-
         setItems(parsed);
-      } catch (err) {
-        if (!cancelled) {
-          const message =
-            err instanceof Error && err.message.trim().length > 0
-              ? err.message
-              : "Unable to load completed assessments.";
-          setError(message);
-        }
+      } catch {
+        if (!cancelled) setError("Unable to load completed assessments.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-
     load();
     return () => {
       cancelled = true;
@@ -115,79 +96,83 @@ export default function AdminCompletedAssessmentsPage() {
   }, []);
 
   const content = useMemo(() => {
-    if (loading) {
+    if (loading)
       return (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-gray-500">
-            Loading completed assessments…
-          </CardContent>
-        </Card>
+        <div className="py-20 text-center text-gray-500 text-sm">
+          Loading completed assessments…
+        </div>
       );
-    }
 
-    if (error) {
+    if (error)
       return (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-red-600">{error}</CardContent>
-        </Card>
+        <div className="py-20 text-center text-red-600 text-sm">{error}</div>
       );
-    }
 
-    if (!items.length) {
+    if (!items.length)
       return (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-gray-500 italic">
-            No completed assessments found.
-          </CardContent>
-        </Card>
+        <div className="py-20 text-center text-gray-500 italic text-sm">
+          No completed assessments found.
+        </div>
       );
-    }
 
-    return items.map((item) => (
-      <Card key={item.id}>
-        <CardHeader>
-          <CardTitle className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-semibold">
-              {item.framework} — {item.branch} ({item.division})
-            </span>
-            <span className="flex items-center gap-2 text-sm text-gray-500">
-              <Badge variant="primary">Completed</Badge>
-              <span>{formatDate(item.closedAt)}</span>
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-gray-700">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <span className="font-medium text-gray-900">Location:</span> {item.location || "—"}
-            </div>
-            <div>
-              <span className="font-medium text-gray-900">Closed By:</span> {item.closedBy}
-            </div>
-            <div>
-              <span className="font-medium text-gray-900">Progress:</span>{" "}
-              {formatProgress(item.progressRate)}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button asChild size="sm" variant="secondary">
-              <Link href={`/admin/assessments/current/${encodeURIComponent(String(item.id))}`}>
-                View Assessment
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    ));
+    return (
+      <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
+        <Table className="w-full text-sm">
+          <TableHeader className="bg-gray-50">
+            <TableRow>
+              <TableHead className="font-semibold text-gray-700">Framework</TableHead>
+              <TableHead className="font-semibold text-gray-700">Division</TableHead>
+              <TableHead className="font-semibold text-gray-700">Branch</TableHead>
+              <TableHead className="font-semibold text-gray-700">Location</TableHead>
+              <TableHead className="font-semibold text-gray-700">Closed By</TableHead>
+              <TableHead className="font-semibold text-gray-700">Closed At</TableHead>
+              <TableHead className="font-semibold text-gray-700 text-center">Progress</TableHead>
+              <TableHead className="text-right font-semibold text-gray-700">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id} className="hover:bg-gray-50 transition-colors">
+                <TableCell className="font-medium text-gray-900">{item.framework}</TableCell>
+                <TableCell>{item.division}</TableCell>
+                <TableCell>{item.branch}</TableCell>
+                <TableCell>{item.location}</TableCell>
+                <TableCell>{item.closedBy}</TableCell>
+                <TableCell>{formatDate(item.closedAt)}</TableCell>
+                <TableCell className="text-center">
+                  <Badge
+                    className={`px-2 py-1 text-xs ${
+                      (item.progressRate ?? 0) >= 100
+                        ? "bg-green-100 text-green-700"
+                        : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {formatProgress(item.progressRate)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button asChild size="sm" variant="secondary">
+                    <Link
+                      href={`/admin/assessments/completed/${encodeURIComponent(String(item.id))}`}
+                    >
+                      View
+                    </Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
   }, [error, items, loading]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Completed Assessments</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Completed Assessments</h1>
         <p className="text-sm text-gray-600">
-          View all assessments closed by IT Admins or Super Admins.
+          A full record of all assessments that have been reviewed and closed.
         </p>
       </div>
 
