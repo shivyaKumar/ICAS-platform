@@ -19,6 +19,7 @@ interface AssessmentTableProps {
   assignableUsers?: UserOption[];
   onRefresh?: () => Promise<void> | void;
   userRole?: string;
+  isCompleted?: boolean;
 }
 
 // ---------- Shared Type for Assignable Users ----------
@@ -35,6 +36,7 @@ export default function AssessmentTable({
   assignableUsers = [],
   onRefresh,
   userRole = "",
+  isCompleted = false,
 }: AssessmentTableProps) {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [longRows, setLongRows] = useState<number[]>([]);
@@ -166,7 +168,7 @@ export default function AssessmentTable({
 
                 {/* ---------- Compliance ---------- */}
                 <TableCell>
-                  {canEdit ? (
+                  {canEdit && !isCompleted ? (
                     <select
                       className="border p-1 rounded w-full bg-white"
                       value={f.compliance || ""}
@@ -202,6 +204,7 @@ export default function AssessmentTable({
                             ) || "Evidence File"
                         )}
                       </a>
+
                       {f.evidences.length > 1 && (
                         <button
                           onClick={() => {
@@ -215,21 +218,31 @@ export default function AssessmentTable({
                           +{f.evidences.length - 1} more
                         </button>
                       )}
+
                       <div id={`drawer-trigger-${f.id}`}>
-                        <EvidenceDrawer findingId={f.id} onUploadSuccess={onRefresh} />
+                        <EvidenceDrawer
+                          findingId={f.id}
+                          onUploadSuccess={onRefresh}
+                          isCompleted={isCompleted}  
+                        />
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-500 text-xs">No files</span>
-                      <EvidenceDrawer findingId={f.id} onUploadSuccess={onRefresh} />
+                      <EvidenceDrawer
+                        findingId={f.id}
+                        onUploadSuccess={onRefresh}
+                        isCompleted={isCompleted}     
+                      />
                     </div>
                   )}
                 </TableCell>
 
+
                 {/* ---------- Review ---------- */}
                 <TableCell>
-                  {canEdit ? (
+                  {canEdit && !isCompleted ? (
                     <select
                       className="border p-1 rounded w-full bg-white"
                       value={f.review || ""}
@@ -282,13 +295,18 @@ export default function AssessmentTable({
                     )}
                   </div>
                   <div id={`comment-drawer-${f.id}`}>
-                    <CommentSection findingId={f.id} onRefresh={onRefresh ?? (() => {})} />
+                    <CommentSection
+                      findingId={f.id}
+                      onRefresh={onRefresh ?? (() => {})}
+                      isCompleted={isCompleted}
+                    />
                   </div>
                 </TableCell>
 
                 {/* ---------- Assigned To ---------- */}
                 <TableCell>
                   <select
+                    disabled={isCompleted}
                     className="border p-1 rounded w-full bg-white"
                     value={f.assignedToEmail || f.assignedTo || ""}
                     onChange={(e) => handleChange(f.id, "assignedTo", e.target.value)}

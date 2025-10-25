@@ -10,12 +10,13 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import EvidenceUploader from "./EvidenceUploader";
-import { X } from "lucide-react";
+import { X, FolderOpen } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 interface EvidenceDrawerProps {
   findingId: number;
   onUploadSuccess?: () => void;
+  isCompleted?: boolean;
 }
 
 interface Evidence {
@@ -26,7 +27,11 @@ interface Evidence {
   uploadedAt?: string;
 }
 
-export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceDrawerProps) {
+export default function EvidenceDrawer({
+  findingId,
+  onUploadSuccess,
+  isCompleted = false,
+}: EvidenceDrawerProps) {
   const [evidences, setEvidences] = useState<Evidence[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +54,6 @@ export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceD
     fetchEvidences();
   }, [fetchEvidences]);
 
-  // Helper function to clean file name (remove GUID prefix)
   const cleanFileName = (fileUrl: string): string => {
     const rawName = decodeURIComponent(fileUrl.split("/").pop() || "Evidence File");
     return rawName.replace(/^[0-9a-fA-F-]{8}(-[0-9a-fA-F-]{4}){3}-[0-9a-fA-F-]{12}_/, "");
@@ -57,13 +61,15 @@ export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceD
 
   return (
     <Drawer>
+      {/* Drawer always opens — even when closed */}
       <DrawerTrigger asChild>
         <Button
           variant="secondary"
           size="sm"
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-3 py-1.5 rounded-none border border-gray-300 transition-all"
+          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-3 py-1.5 rounded-none border border-gray-300 transition-all flex items-center gap-1"
         >
-          Upload Evidence
+          <FolderOpen className="h-3.5 w-3.5" />
+          Evidence
         </Button>
       </DrawerTrigger>
 
@@ -96,7 +102,9 @@ export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceD
             {loading ? (
               <p className="text-xs text-gray-500 italic">Loading evidence...</p>
             ) : evidences.length === 0 ? (
-              <p className="text-xs text-gray-500 italic">No evidence uploaded yet.</p>
+              <p className="text-xs text-gray-500 italic">
+                No evidence uploaded yet.
+              </p>
             ) : (
               <div className="space-y-3">
                 {evidences.map((evidence) => (
@@ -112,7 +120,6 @@ export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceD
                     >
                       {cleanFileName(evidence.fileUrl)}
                     </a>
-
                     {evidence.description && (
                       <p className="text-xs text-gray-700 mt-1">
                         {evidence.description}
@@ -132,22 +139,26 @@ export default function EvidenceDrawer({ findingId, onUploadSuccess }: EvidenceD
 
           <hr className="border-gray-200" />
 
-          {/* Upload new evidence */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">
-              Upload new evidence
-            </h4>
-            <EvidenceUploader
-              findingId={findingId}
-              onUploadSuccess={async () => {
-                await fetchEvidences(); // refresh drawer immediately
-                if (onUploadSuccess) {
-                  console.log("Upload success — triggering parent refresh...");
-                  onUploadSuccess(); // notify parent (AssessmentDetailClient)
-                }
-              }}
-            />
-          </div>
+          {/*Upload section only visible if assessment not closed */}
+          {!isCompleted ? (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                Upload new evidence
+              </h4>
+              <EvidenceUploader
+                findingId={findingId}
+                onUploadSuccess={async () => {
+                  await fetchEvidences();
+                  onUploadSuccess?.();
+                }}
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 italic">
+              This assessment is closed. Evidence uploads are disabled, but you
+              can still view existing files.
+            </p>
+          )}
         </div>
       </DrawerContent>
     </Drawer>

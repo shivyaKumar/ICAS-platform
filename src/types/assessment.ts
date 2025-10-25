@@ -58,6 +58,7 @@ export interface Assessment {
   closedBy?: string;
   closedAt?: string;
   progressRate?: number;
-  status?: string;                // Optional because progress determines completion
+  status?: string;
+  isClosed?: boolean;                 // Optional because progress determines completion
   findings: Finding[];
 }

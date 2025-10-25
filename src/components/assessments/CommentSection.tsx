@@ -9,7 +9,7 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Edit, Trash2 } from "lucide-react";
+import { X, Edit, Trash2, MessageSquare } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 interface Comment {
@@ -23,9 +23,14 @@ interface Comment {
 interface CommentDrawerProps {
   findingId: number;
   onRefresh?: () => void;
+  isCompleted?: boolean;
 }
 
-export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerProps) {
+export default function CommentDrawer({
+  findingId,
+  onRefresh,
+  isCompleted = false,
+}: CommentDrawerProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
@@ -121,13 +126,15 @@ export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerPro
   /* ---------- Render ---------- */
   return (
     <Drawer>
+      {/* ✅ Always allow viewing comments (even if closed) */}
       <DrawerTrigger asChild>
         <Button
           variant="secondary"
           size="sm"
-          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-3 py-1.5 rounded-none border border-gray-300 transition-all"
+          className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium px-3 py-1.5 rounded-none border border-gray-300 transition-all flex items-center gap-1"
         >
-          Add Comment
+          <MessageSquare className="h-3.5 w-3.5" />
+          Comments
         </Button>
       </DrawerTrigger>
 
@@ -153,7 +160,9 @@ export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerPro
         {/* Content */}
         <div className="flex-1 overflow-y-scroll px-6 py-6 space-y-6 text-sm text-gray-800">
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">All Comments</h4>
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">
+              All Comments
+            </h4>
 
             {loading ? (
               <p className="text-xs text-gray-500 italic">Loading comments...</p>
@@ -172,12 +181,14 @@ export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerPro
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
                           className="w-full border border-gray-300 rounded-md p-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                          disabled={isCompleted}
                         />
                         <div className="flex justify-end gap-2">
                           <Button
                             size="sm"
                             variant="secondary"
                             onClick={() => handleUpdate(c.id)}
+                            disabled={isCompleted}
                           >
                             Save
                           </Button>
@@ -200,28 +211,34 @@ export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerPro
                           <p className="text-[11px] text-gray-500 mt-1">
                             {c.user} • {new Date(c.createdAt).toLocaleString()}{" "}
                             {c.updatedAt ? (
-                              <span className="italic text-gray-400">(edited)</span>
+                              <span className="italic text-gray-400">
+                                (edited)
+                              </span>
                             ) : null}
                           </p>
                         </div>
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => handleEdit(c)}
-                          >
-                            <Edit className="h-3.5 w-3.5 text-gray-600" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => handleDelete(c.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                          </Button>
-                        </div>
+
+                        {/* Hide edit/delete when completed */}
+                        {!isCompleted && (
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => handleEdit(c)}
+                            >
+                              <Edit className="h-3.5 w-3.5 text-gray-600" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6"
+                              onClick={() => handleDelete(c.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -232,27 +249,40 @@ export default function CommentDrawer({ findingId, onRefresh }: CommentDrawerPro
 
           <hr className="border-gray-200" />
 
-          {/* Add new comment */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">
-              Add a new comment
-            </h4>
-            <div className="flex flex-col gap-3">
-              <textarea
-                placeholder="Write a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="w-full border border-gray-300 rounded-md p-3 text-sm text-gray-900 
-                          focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500
-                          resize-none min-h-[100px]"
-              />
-              <div className="flex justify-end">
-                <Button variant={"secondary"} size={"sm"} onClick={handleAddComment}>
-                  Add
-                </Button>
+          {/* Add new comment (only if not completed) */}
+          {!isCompleted && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                Add a new comment
+              </h4>
+              <div className="flex flex-col gap-3">
+                <textarea
+                  placeholder="Write a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md p-3 text-sm text-gray-900 
+                            focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500
+                            resize-none min-h-[100px]"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddComment}
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* ✅ Show read-only note when closed */}
+          {isCompleted && (
+            <p className="text-xs text-gray-500 italic">
+              This assessment is closed. Comments are read-only.
+            </p>
+          )}
         </div>
       </DrawerContent>
     </Drawer>

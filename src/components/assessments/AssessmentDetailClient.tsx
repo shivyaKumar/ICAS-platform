@@ -279,6 +279,7 @@ export default function AssessmentDetailClient() {
         branch: detailData.branch,
         location: detailData.location,
         status: detailData.status,
+        isClosed: detailData.isClosed ?? false,
         createdBy: detailData.createdBy,
         createdAt: detailData.createdAt ?? new Date().toISOString(),
         dueDate: detailData.dueDate,
@@ -387,6 +388,7 @@ export default function AssessmentDetailClient() {
             assignableUsers={assignableUsers}
             userRole={userRole}
             onRefresh={loadAssessment}
+            isCompleted={(assessment.status ?? "").trim().toLowerCase() === "completed" || assessment.isClosed === true}
           />
         </CardContent>
       </Card>

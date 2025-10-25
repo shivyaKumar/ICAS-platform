@@ -6,17 +6,25 @@ import { Button } from "@/components/ui/button";
 interface EvidenceUploaderProps {
   findingId: number;
   onUploadSuccess?: () => void;
+  isCompleted?: boolean;
 }
 
-export default function EvidenceUploader({ findingId, onUploadSuccess }: EvidenceUploaderProps) {
+export default function EvidenceUploader({
+  findingId,
+  onUploadSuccess,
+  isCompleted = false,
+}: EvidenceUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
+    if (!file) {
+      alert("Please select a file before uploading.");
+      return;
+    }
 
+    setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("description", description);
@@ -27,10 +35,14 @@ export default function EvidenceUploader({ findingId, onUploadSuccess }: Evidenc
         body: formData,
       });
 
-      if (!res.ok) throw new Error();
-      if (onUploadSuccess) onUploadSuccess();
-    } catch {
-      console.error("Upload failed");
+      if (!res.ok) throw new Error("Upload failed");
+
+      // Refresh parent component (EvidenceDrawer)
+      onUploadSuccess?.();
+      setFile(null);
+      setDescription("");
+    } catch (err) {
+      console.error("Error uploading evidence:", err);
     } finally {
       setUploading(false);
     }
@@ -38,24 +50,41 @@ export default function EvidenceUploader({ findingId, onUploadSuccess }: Evidenc
 
   return (
     <div className="space-y-3">
+      {/* Disable all input fields when assessment is completed */}
       <input
         type="file"
+        disabled={isCompleted}
         onChange={(e) => setFile(e.target.files?.[0] || null)}
-        className="block w-full text-sm text-gray-700"
+        className={`block w-full text-sm text-gray-700 ${
+          isCompleted ? "opacity-60 cursor-not-allowed" : ""
+        }`}
       />
+
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description (optional)"
-        rows={4}  //
-        className="border border-gray-300 w-full rounded-md text-sm p-2 focus:outline-none focus:ring-1 focus:ring-gray-300 resize-none"
+        rows={4}
+        disabled={isCompleted}
+        className={`border border-gray-300 w-full rounded-md text-sm p-2 
+          focus:outline-none focus:ring-1 focus:ring-gray-300 resize-none
+          ${isCompleted ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
       />
-      <Button variant={"secondary"} size={"sm"}
-        onClick={handleUpload}
-        disabled={uploading}
-      >
-        {uploading ? "Uploading..." : "Save"}
-      </Button>
+
+      {!isCompleted ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleUpload}
+          disabled={uploading}
+        >
+          {uploading ? "Uploading..." : "Save"}
+        </Button>
+      ) : (
+        <p className="text-xs text-gray-500 italic">
+          This assessment is completed. Evidence upload is disabled.
+        </p>
+      )}
     </div>
   );
 }
