@@ -1,7 +1,10 @@
 /* ---------- Evidence (File Upload Metadata) ---------- */
 export interface Evidence {
+  id: number;  
   fileName: string;
   fileUrl: string;
+  description?: string | null;
+  uploadedBy?: string | null;
   uploadedAt: string;
 }
 

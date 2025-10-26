@@ -5,24 +5,29 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // Base shared styles
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         primary:
-          "bg-primary text-black shadow hover:bg-primary/90", // Golden Yellow
+          // Bright golden-yellow with subtle shadow and smooth hover
+          "bg-primary text-black shadow-sm hover:bg-primary/90 hover:shadow-md",
         secondary:
-          "bg-black text-white shadow hover:bg-gray-900", // Black
+          // Balanced dark gray button with soft hover and lift
+          "bg-gray-900 text-white shadow-sm hover:bg-black hover:shadow-md",
         ghost:
-          "bg-transparent text-gray-700 hover:bg-gray-100", // Transparent subtle button
+          // Transparent subtle button for secondary actions
+          "bg-transparent text-gray-700 hover:bg-gray-100",
         destructive:
-          "bg-red-500 text-white hover:bg-red-600", // Red for delete
+          // Clear red for delete or critical actions
+          "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:shadow-md",
       },
       size: {
-        default: "h-10 px-4 text-sm w-40", // Default button
-        sm: "h-8 px-3 text-xs w-32", // Small button
-        lg: "h-12 px-8 text-base w-48", // Large button
-        icon: "h-9 w-9", // Square compact icon button
+        default: "h-10 px-5 text-sm",
+        sm: "h-8 px-4 text-xs",
+        lg: "h-12 px-8 text-base",
+        icon: "h-9 w-9",
       },
     },
     defaultVariants: {

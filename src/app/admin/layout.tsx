@@ -28,8 +28,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           onClose={() => setSidebarOpen(false)}
         />
 
-        <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-5 lg:px-6 py-4 bg-gray-50">
-          <div className="min-w-0">{children}</div>
+        <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            {children}
+          </div>
         </main>
       </div>
     </div>

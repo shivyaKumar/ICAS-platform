@@ -57,7 +57,7 @@ export default function StaffMyTasksPage() {
     if (loading)
       return (
         <tr>
-          <td colSpan={8} className="px-5 py-8 text-center text-gray-500">
+          <td colSpan={9} className="px-5 py-8 text-center text-gray-600">
             Loading...
           </td>
         </tr>
@@ -66,7 +66,7 @@ export default function StaffMyTasksPage() {
     if (error)
       return (
         <tr>
-          <td colSpan={8} className="px-5 py-8 text-center text-red-600">
+          <td colSpan={9} className="px-5 py-8 text-center text-red-600">
             {error}
           </td>
         </tr>
@@ -75,56 +75,108 @@ export default function StaffMyTasksPage() {
     if (!items.length)
       return (
         <tr>
-          <td colSpan={8} className="px-5 py-8 text-center text-gray-400 italic">
+          <td colSpan={9} className="px-5 py-8 text-center text-gray-500 italic">
             No assessments found for your branch.
           </td>
         </tr>
       );
 
-    return items.map((item) => (
-      <tr key={item.id} className="border-t">
-        <td className="px-5 py-3 font-medium">{item.framework}</td>
-        <td className="px-5 py-3">{item.division || "-"}</td>
-        <td className="px-5 py-3">{item.branch || "-"}</td>
-        <td className="px-5 py-3">{item.location || "-"}</td>
-        <td className="px-5 py-3">{item.createdBy || "-"}</td>
-        <td className="px-5 py-3">{formatDate(item.assessmentDate)}</td>
-        <td className="px-5 py-3">{formatDate(item.dueDate)}</td>
-        <td className="px-5 py-3">
-          <Badge className="bg-blue-100 text-blue-700">{formatProgress(item.progressRate)}</Badge>
-        </td>
-        <td className="px-5 py-3">
-          <Button asChild size="sm" variant="secondary">
-            <Link href={`/staff/assessments/${encodeURIComponent(String(item.id))}`}>Open</Link>
-          </Button>
-        </td>
-      </tr>
-    ));
+    return items.map((item, index) => {
+      const progressText = formatProgress(item.progressRate ?? 0);
+      return (
+        <tr
+          key={item.id}
+          className={`${
+            index % 2 === 0 ? "bg-white" : "bg-gray-50"
+          } border-b border-gray-200 hover:bg-gray-100 transition`}
+        >
+          <td className="px-5 py-3 text-gray-800 font-medium whitespace-nowrap border-r border-gray-200">
+            {item.framework || "-"}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {item.division || "-"}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {item.branch || "-"}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {item.location || "-"}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {item.createdBy || "-"}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {formatDate(item.assessmentDate)}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            {formatDate(item.dueDate)}
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap border-r border-gray-200">
+            <Badge className="bg-orange-100 text-orange-700 border border-orange-200 px-2 py-1 text-xs font-medium">
+              {progressText}
+            </Badge>
+          </td>
+          <td className="px-5 py-3 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              {/* OPEN BUTTON */}
+              <Button asChild size="sm" variant="primary">
+                <Link href={`/staff/assessments/${encodeURIComponent(String(item.id))}`}>
+                  Open
+                </Link>
+              </Button>
+            </div>
+          </td>
+        </tr>
+      );
+    });
   }, [items, loading, error]);
 
   return (
-    <div className="p-6">
-      <Card className="bg-white">
-        <CardHeader>
-          <CardTitle className="text-2xl">My Assessments</CardTitle>
+    <div className="p-0">
+      <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
+        {/* --- Header --- */}
+        <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
+            My Assessments
+          </CardTitle>
           <p className="text-sm text-gray-600">
             View all active assessments assigned to your branch.
           </p>
         </CardHeader>
+
+        {/* --- Table --- */}
         <CardContent>
-          <div className="rounded-xl border overflow-auto">
-            <table className="w-full min-w-[960px] text-sm">
-              <thead className="bg-gray-50 text-left">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Framework</th>
-                  <th className="px-5 py-3 font-semibold">Division</th>
-                  <th className="px-5 py-3 font-semibold">Branch</th>
-                  <th className="px-5 py-3 font-semibold">Location</th>
-                  <th className="px-5 py-3 font-semibold">Created By</th>
-                  <th className="px-5 py-3 font-semibold">Assessment Date</th>
-                  <th className="px-5 py-3 font-semibold">Due Date</th>
-                  <th className="px-5 py-3 font-semibold">Progress</th>
-                  <th className="px-5 py-3 font-semibold">Action</th>
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
+            <table className="w-full min-w-[960px] text-sm text-gray-800 border-separate border-spacing-0">
+              <thead>
+                <tr className="bg-[#D8E6FB] text-gray-800">
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Framework
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Division
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Branch
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Location
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Created By
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Assessment Date
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Due Date
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Progress
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-xs uppercase tracking-wide text-left border-b border-gray-300">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>{content}</tbody>

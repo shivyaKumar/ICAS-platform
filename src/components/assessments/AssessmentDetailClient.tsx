@@ -321,66 +321,112 @@ export default function AssessmentDetailClient() {
   /* ------------------ Render ------------------ */
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2 text-xl font-semibold">
+      {/* ---------- Modern Two-Column Assessment Summary Card ---------- */}
+      <Card className="border border-gray-200 shadow-sm rounded-xl bg-gradient-to-br from-yellow-50 via-white to-gray-50
+      ">
+        <CardHeader className="pb-2 border-b border-gray-100">
+          <CardTitle className="flex flex-wrap items-center gap-2 text-2xl font-semibold text-gray-800">
             <span>{assessment.framework}</span>
-            {assessment.branch && <Badge variant="secondary">{assessment.branch}</Badge>}
-            {assessment.division && <Badge variant="outline">{assessment.division}</Badge>}
+            {assessment.branch && (
+              <Badge
+                variant="secondary"
+                className="text-xs px-2 py-1 bg-blue-100 text-blue-800"
+              >
+                {assessment.branch}
+              </Badge>
+            )}
+            {assessment.division && (
+              <Badge
+                variant="outline"
+                className="text-xs px-2 py-1 border-gray-300 text-gray-700"
+              >
+                {assessment.division}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2 text-sm text-muted-foreground">
-          {assessment.assessmentScope && (
-            <span>
-              <strong className="text-foreground">Scope:</strong>{" "}
-              {assessment.assessmentScope}
-            </span>
-          )}
-          {assessment.location && (
-            <span>
-              <strong className="text-foreground">Location:</strong>{" "}
-              {assessment.location}
-            </span>
-          )}
-          <span>
-            <strong className="text-foreground">Created By:</strong>{" "}
-            {assessment.createdBy ?? "Unknown"}
-          </span>
-          <span>
-            <strong className="text-foreground">Created At:</strong>{" "}
-            {new Date(assessment.createdAt).toLocaleString()}
-          </span>
 
-          {assessment.dueDate && (
-            <span>
-              <strong className="text-foreground">Due Date:</strong>{" "}
-              {new Date(assessment.dueDate).toLocaleDateString()}
-            </span>
-          )}
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 py-4 text-sm">
+          {/* Column 1 */}
+          <div className="space-y-3">
+            {assessment.assessmentScope && (
+              <div>
+                <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                  Scope
+                </p>
+                <p className="text-gray-800">{assessment.assessmentScope}</p>
+              </div>
+            )}
 
-          {/* Show Closed By / Closed At only if completed */}
-          {assessment.status === "Completed" && (
-            <>
-              {assessment.closedBy && (
-                <span>
-                  <strong className="text-foreground">Closed By:</strong>{" "}
-                  {assessment.closedBy}
-                </span>
-              )}
-              {assessment.closedAt && (
-                <span>
-                  <strong className="text-foreground">Closed At:</strong>{" "}
-                  {new Date(assessment.closedAt).toLocaleString()}
-                </span>
-              )}
-            </>
-          )}
+            {assessment.location && (
+              <div>
+                <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                  Location
+                </p>
+                <p className="text-gray-800">{assessment.location}</p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                Created By
+              </p>
+              <p className="text-gray-800">{assessment.createdBy ?? "Unknown"}</p>
+            </div>
+          </div>
+
+          {/* Column 2 */}
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                Created At
+              </p>
+              <p className="text-gray-800">
+                {new Date(assessment.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            {assessment.dueDate && (
+              <div>
+                <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                  Due Date
+                </p>
+                <p className="text-gray-800">
+                  {new Date(assessment.dueDate).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+
+            {assessment.status === "Completed" && (
+              <>
+                {assessment.closedAt && (
+                  <div>
+                    <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                      Closed At
+                    </p>
+                    <p className="text-gray-800">
+                      {new Date(assessment.closedAt).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+                {assessment.closedBy && (
+                  <div>
+                    <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
+                      Closed By
+                    </p>
+                    <p className="text-gray-800">{assessment.closedBy}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 
+
       <Card>
         <CardHeader>
-          <CardTitle>Control Findings</CardTitle>
+          <CardTitle>Assessment Findings</CardTitle>
         </CardHeader>
         <CardContent>
           <AssessmentTable
