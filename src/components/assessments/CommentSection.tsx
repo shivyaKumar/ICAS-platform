@@ -11,6 +11,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { X, Edit, Trash2, MessageSquare } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Comment {
   id: number;
@@ -36,6 +48,8 @@ export default function CommentDrawer({
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null); // for dialog confirmation
+  const { toast } = useToast();
 
   /* ---------- Fetch existing comments ---------- */
   const fetchComments = useCallback(async () => {
@@ -72,11 +86,25 @@ export default function CommentDrawer({
         setNewComment("");
         await fetchComments();
         onRefresh?.();
+        toast({
+          description: "Your comment has been successfully added.",
+          variant: "success",
+        });
       } else {
         console.error("Failed to add comment");
+        toast({
+          title: "Failed to Add Comment",
+          description: "Please try again later.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error("Error adding comment:", err);
+      toast({
+        title: "Error Adding Comment",
+        description: "Something went wrong while adding the comment.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -99,34 +127,61 @@ export default function CommentDrawer({
         setEditText("");
         await fetchComments();
         onRefresh?.();
+        toast({
+          description: "Your comment has been updated successfully.",
+          variant: "success",
+        });
       } else {
         console.error("Failed to update comment");
+        toast({
+          title: "Update Failed",
+          description: "Unable to update comment. Try again later.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error("Error updating comment:", err);
+      toast({
+        title: "Error Updating Comment",
+        description: "Something went wrong while updating the comment.",
+        variant: "destructive",
+      });
     }
   };
 
   /* ---------- Delete comment ---------- */
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this comment?")) return;
     try {
       const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
       if (res.ok) {
         await fetchComments();
         onRefresh?.();
+        toast({
+          description: "The comment has been successfully removed.",
+          variant: "success",
+        });
       } else {
         console.error("Failed to delete comment");
+        toast({
+          title: "Deletion Failed",
+          description: "Unable to delete comment. Try again later.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error("Error deleting comment:", err);
+      toast({
+        title: "Error Deleting Comment",
+        description: "Something went wrong while deleting the comment.",
+        variant: "destructive",
+      });
     }
   };
 
   /* ---------- Render ---------- */
   return (
     <Drawer>
-      {/* ✅ Always allow viewing comments (even if closed) */}
+      {/* Always allow viewing comments (even if closed) */}
       <DrawerTrigger asChild>
         <Button
           variant="secondary"
@@ -229,14 +284,51 @@ export default function CommentDrawer({
                             >
                               <Edit className="h-3.5 w-3.5 text-gray-600" />
                             </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => handleDelete(c.id)}
+
+                            {/* Replaced confirm() with AlertDialog */}
+                            <AlertDialog
+                              open={deleteId === c.id}
+                              onOpenChange={(open) =>
+                                setDeleteId(open ? c.id : null)
+                              }
                             >
-                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                            </Button>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Confirm Deletion
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this comment?
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel asChild>
+                                    <Button variant="secondary" size="sm">
+                                      Cancel
+                                    </Button>
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction asChild>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      onClick={() => handleDelete(c.id)}
+                                    >
+                                      Confirm
+                                    </Button>
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         )}
                       </div>
@@ -277,7 +369,7 @@ export default function CommentDrawer({
             </div>
           )}
 
-          {/* ✅ Show read-only note when closed */}
+          {/* Show read-only note when closed */}
           {isCompleted && (
             <p className="text-xs text-gray-500 italic">
               This assessment is closed. Comments are read-only.

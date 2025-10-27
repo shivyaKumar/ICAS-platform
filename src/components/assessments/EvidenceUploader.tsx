@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface EvidenceUploaderProps {
   findingId: number;
@@ -17,10 +18,15 @@ export default function EvidenceUploader({
   const [file, setFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
+  const { toast } = useToast(); 
 
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select a file before uploading.");
+      toast({
+        title: "No File Selected",
+        description: "Please select a file before uploading.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -36,6 +42,11 @@ export default function EvidenceUploader({
       });
 
       if (!res.ok) throw new Error("Upload failed");
+
+      toast({
+        description: "Your file has been successfully uploaded.",
+        variant: "success",
+      });
 
       // Refresh parent component (EvidenceDrawer)
       onUploadSuccess?.();

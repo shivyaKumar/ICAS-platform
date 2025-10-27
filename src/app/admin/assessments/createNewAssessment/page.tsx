@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectTrigger,
@@ -45,6 +46,7 @@ export default function CreateAssessmentPage() {
   const [assessmentDate, setAssessmentDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   /* ---------- Load initial data ---------- */
   useEffect(() => {
@@ -81,7 +83,11 @@ export default function CreateAssessmentPage() {
   /* ---------- Handle Submit ---------- */
   const handleSubmit = async () => {
     if (!selectedFramework || !selectedBranch) {
-      alert("Please select a framework and branch.");
+      toast({
+        title: "Missing Information",
+        description: "Please select both a framework and branch before continuing.",
+        variant: "destructive", // Red for invalid
+      });
       return;
     }
 
@@ -94,23 +100,24 @@ export default function CreateAssessmentPage() {
     };
 
     setIsSubmitting(true);
+
     try {
       const res = await fetch(`/api/assessments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        credentials: "include", // send JWT cookie
+        credentials: "include",
       });
 
       const text = await res.text();
       if (!res.ok) throw new Error(text);
 
-      const data = JSON.parse(text);
-      alert(
-        `Assessment created successfully!\n\nAssigned to all users in ${data.Branch} (${data.Division}).`
-      );
+      toast({
+        title: "Assessment Created Successfully",
+        variant: "success", // Green for success
+      });
 
-      // reset form
+      // Reset form after success
       setSelectedFramework("");
       setSelectedDivision(null);
       setSelectedBranch(null);
@@ -119,11 +126,16 @@ export default function CreateAssessmentPage() {
       setDueDate("");
     } catch (err) {
       console.error("Error creating assessment:", err);
-      alert("Failed to create assessment. Please try again.");
+      toast({
+        title: "Error Creating Assessment",
+        description: "Something went wrong. Please try again later.",
+        variant: "destructive", // Red for errors
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   /* ---------- JSX ---------- */
   return (

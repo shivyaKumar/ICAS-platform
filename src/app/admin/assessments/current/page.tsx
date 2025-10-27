@@ -5,6 +5,18 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 type AssessmentListItem = {
   id: number;
@@ -35,6 +47,7 @@ export default function CurrentAssessmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState<number | null>(null);
+  const { toast } = useToast();
 
   const fetchAssessments = useCallback(async () => {
     try {
@@ -61,7 +74,6 @@ export default function CurrentAssessmentsPage() {
 
   const handleCloseAssessment = useCallback(
     async (id: number) => {
-      if (!confirm("Close this assessment?")) return;
 
       try {
         setClosing(id);
@@ -72,16 +84,25 @@ export default function CurrentAssessmentsPage() {
         });
 
         if (!response.ok) throw new Error(await response.text());
-        alert("Assessment closed successfully.");
+
+        toast({
+          title: "Assessment Closed Successfully",
+          variant: "success", // Green for success
+        });
+
         fetchAssessments();
       } catch (err) {
         console.error("Failed to close assessment", err);
-        alert("Unable to close assessment. Please try again.");
+        toast({
+          title: "Failed to Close Assessment",
+          description: "Something went wrong. Please try again later.",
+          variant: "destructive", // Red for error
+        });
       } finally {
         setClosing(null);
       }
     },
-    [fetchAssessments]
+    [fetchAssessments, toast]
   );
 
   const content = useMemo(() => {
@@ -152,20 +173,53 @@ export default function CurrentAssessmentsPage() {
               </Button>
 
               {/* CLOSE BUTTON */}
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleCloseAssessment(item.id)}
-                disabled={closing === item.id}
-              >
-                {closing === item.id ? "Closing..." : "Close"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={closing === item.id}
+                  >
+                    {closing === item.id ? "Closing..." : "Close"}
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Assessment Closure</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to close this assessment? Once closed, it will move to Completed Assessments.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      onClick={() =>
+                        toast({
+                          title: "Action Cancelled",
+                          description: "Assessment closure was cancelled by user.",
+                          variant: "destructive", 
+                        })
+                      }
+                    >
+                      Cancel
+                    </AlertDialogCancel>
+
+                    <AlertDialogAction
+                      onClick={() => handleCloseAssessment(item.id)}
+                      className="bg-[#facc15] text-black font-semibold hover:bg-[#eab308]" // yellow Carpenters color
+                    >
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </td>
         </tr>
       );
     });
-  }, [items, loading, error, closing, handleCloseAssessment]);
+  }, [items, loading, error, closing, handleCloseAssessment, toast]);
 
   return (
     <div className="p-0">

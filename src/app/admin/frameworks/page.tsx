@@ -4,6 +4,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5275").replace(/\/+$/, "");
 console.log("API base =", API);
@@ -53,6 +65,7 @@ export default function FrameworksPage() {
   const [items, setItems] = useState<FrameworkDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast(); // added toast hook
 
   const fetchFrameworks = async () => {
     try {
@@ -109,8 +122,13 @@ export default function FrameworksPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // toast
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      alert("Only .xlsx Excel files are allowed.");
+      toast({
+        title: "Invalid File Type",
+        description: "Only .xlsx Excel files are allowed.",
+        variant: "destructive",
+      });
       event.target.value = "";
       return;
     }
@@ -143,6 +161,11 @@ export default function FrameworksPage() {
 
       if (!response.ok) {
         setMessage(text || response.statusText || "Failed to upload framework.");
+        toast({
+          title: "Upload Failed",
+          description: "Ensure your Excel file is correctly formatted and try again.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -183,9 +206,21 @@ export default function FrameworksPage() {
 
       const displayVersion = versionValue || "N/A";
       setMessage(`Imported: ${frameworkName} v${displayVersion} (${controlsFound} controls)`);
+
+      // toast success
+      toast({
+        title: "Framework Imported",
+        description: `${frameworkName} v${displayVersion} (${controlsFound} controls)`,
+        variant: "success",
+      });
     } catch (error) {
       console.error("Upload framework failed", error);
       setMessage("Failed to upload framework.");
+      toast({
+        title: "Upload Failed",
+        description: "Something went wrong. Please try again later.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
       event.target.value = "";
@@ -201,14 +236,25 @@ export default function FrameworksPage() {
       if (!response.ok) {
         const text = await response.text();
         setMessage(text || "Sample not found or unauthorized.");
+        toast({
+          title: "Download Failed",
+          description: "Unable to find or download sample file.",
+          variant: "destructive",
+        });
         return;
       }
 
       const blob = await response.blob();
       downloadFile(blob, "Framework_Sample.xlsx");
+
     } catch (error) {
       console.error("Download sample failed", error);
       setMessage("Unable to download sample file.");
+      toast({
+        title: "Download Failed",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -221,21 +267,35 @@ export default function FrameworksPage() {
       if (!response.ok) {
         const text = await response.text();
         setMessage(text || `Failed to download ${framework.name}.`);
+        toast({
+          title: "Download Failed",
+          description: `Failed to download ${framework.name}.`,
+          variant: "destructive",
+        });
         return;
       }
 
       const blob = await response.blob();
       const filename = `${framework.name.replace(/\s+/g, "_") || "framework"}.xlsx`;
       downloadFile(blob, filename);
+
+      toast({
+        title: "Download Started",
+        description: `${framework.name} is being downloaded.`,
+        variant: "success",
+      });
     } catch (error) {
       console.error("Download framework failed", error);
       setMessage(`Unable to download ${framework.name}.`);
+      toast({
+        title: "Download Failed",
+        description: `Unable to download ${framework.name}.`,
+        variant: "destructive",
+      });
     }
   };
 
   const handleDeleteFramework = async (id: number) => {
-    if (!window.confirm("Delete this framework? This cannot be undone.")) return;
-
     try {
       const response = await fetch(`${API}/api/frameworks/${id}`, {
         method: "DELETE",
@@ -245,14 +305,29 @@ export default function FrameworksPage() {
       if (!response.ok) {
         const text = await response.text();
         setMessage(text || "Failed to delete framework.");
+        toast({
+          title: "Deletion Failed",
+          description: "Could not delete this framework.",
+          variant: "destructive",
+        });
         return;
       }
 
       setItems((prev) => prev.filter((framework) => framework.id !== id));
       setMessage("Framework deleted successfully.");
+      toast({
+        title: "Framework Deleted",
+        description: "The framework was successfully deleted.",
+        variant: "success",
+      });
     } catch (error) {
       console.error("Delete framework failed", error);
       setMessage("Unable to delete framework at this time.");
+      toast({
+        title: "Deletion Failed",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -326,13 +401,32 @@ export default function FrameworksPage() {
                     >
                       Download
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteFramework(framework.id)}
-                    >
-                      Delete
-                    </Button>
+
+                    {/* AlertDialog */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Framework Deletion</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this framework? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteFramework(framework.id)}
+                            className="bg-red-600 text-white font-semibold hover:bg-red-700"
+                          >
+                            Confirm
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </li>
               ))}
