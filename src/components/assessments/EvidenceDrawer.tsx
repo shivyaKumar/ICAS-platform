@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import EvidenceUploader from "./EvidenceUploader";
 import { X, FolderOpen } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+import { formatAppDate } from "@/lib/date";
 
 interface EvidenceDrawerProps {
   findingId: number;
@@ -113,13 +114,13 @@ export default function EvidenceDrawer({
                     className="p-3 border border-blue-200 rounded-md bg-blue-50 hover:bg-blue-100 transition"
                   >
                     <a
-                      href={evidence.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={`/api/evidence/download/${evidence.id}`}
                       className="text-blue-600 text-sm font-medium hover:underline break-words"
+                      download
                     >
                       {cleanFileName(evidence.fileUrl)}
                     </a>
+
                     {evidence.description && (
                       <p className="text-xs text-gray-700 mt-1">
                         {evidence.description}
@@ -129,7 +130,7 @@ export default function EvidenceDrawer({
                       {evidence.uploadedBy
                         ? `Uploaded by ${evidence.uploadedBy}`
                         : "Uploader unknown"}{" "}
-                      • {new Date(evidence.uploadedAt || "").toLocaleString()}
+                      • {formatAppDate(evidence.uploadedAt)}
                     </p>
                   </div>
                 ))}

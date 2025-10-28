@@ -23,6 +23,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { formatAppDate } from "@/lib/date";
 
 interface Comment {
   id: number;
@@ -49,6 +50,14 @@ export default function CommentDrawer({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null); // for dialog confirmation
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+
+    useEffect(() => {
+      fetch("/api/me", { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => setCurrentUserEmail(data.email ?? null))
+        .catch(() => setCurrentUserEmail(null));
+    }, []);
   const { toast } = useToast();
 
   /* ---------- Fetch existing comments ---------- */
@@ -264,7 +273,7 @@ export default function CommentDrawer({
                         <div>
                           <p className="text-sm text-gray-900">{c.text}</p>
                           <p className="text-[11px] text-gray-500 mt-1">
-                            {c.user} • {new Date(c.createdAt).toLocaleString()}{" "}
+                            {c.user} • {formatAppDate(c.createdAt)}{" "}
                             {c.updatedAt ? (
                               <span className="italic text-gray-400">
                                 (edited)
@@ -273,8 +282,8 @@ export default function CommentDrawer({
                           </p>
                         </div>
 
-                        {/* Hide edit/delete when completed */}
-                        {!isCompleted && (
+                        {/* Show edit/delete only for the owner */}
+                        {!isCompleted && c.user?.includes(currentUserEmail ?? "") && (
                           <div className="flex gap-1 ml-2">
                             <Button
                               size="icon"

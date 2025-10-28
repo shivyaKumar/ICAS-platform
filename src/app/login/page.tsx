@@ -63,13 +63,14 @@ export default function LoginPage() {
       const role = me.roles?.[0] ?? "User";
 
       //Redirect based on role
-      if (["Super Admin", "IT Admin", "Admin"].includes(role)) {
+      if (["Super Admin", "IT Admin"].includes(role)) {
         router.replace("/admin/dashboard");
-      } else if (role === "Standard User") {
+      } else if (["Admin", "Standard User"].includes(role)) {
         router.replace("/staff/dashboard");
       } else {
         router.replace("/unauthorized");
       }
+
     } catch (err) {
       console.error("Login error", err);
       setError("Something went wrong. Please try again.");

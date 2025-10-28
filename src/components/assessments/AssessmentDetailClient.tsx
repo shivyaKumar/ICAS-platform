@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import AssessmentTable, { type UserOption } from "@/components/assessments/AssessmentTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatAppDate } from "@/lib/date";
 
 import type { Assessment, Evidence, Finding } from "@/types/assessment";
 
@@ -202,7 +203,7 @@ export default function AssessmentDetailClient() {
       if (
         role === "Admin" ||
         role === "IT Admin" ||
-        role === "SuperAdmin" ||
+        role === "Super Admin" ||
         role === "Standard User"
       ) {
         const [usersRes, branchesRes] = await Promise.all([
@@ -223,9 +224,16 @@ export default function AssessmentDetailClient() {
       const targetDivision = normalize(detailData.division);
       const targetLocation = normalize(detailData.location);
 
+      // Define allowed roles exactly matching backend logic
+      const ASSIGNABLE_ROLES = new Set(["admin", "standard user"]);
+
       const candidates = (Array.isArray(usersData) ? usersData : [])
-        .filter((user: any) => !!user.role)
         .filter((user: any) => {
+          if (!user.role) return false;
+
+          const normalizedRole = user.role.trim().toLowerCase();
+          if (!ASSIGNABLE_ROLES.has(normalizedRole)) return false;
+
           const branchInfo = user.branchId ? branchLookup.get(user.branchId) : undefined;
           const userBranch = normalize(user.branchName ?? branchInfo?.name);
           const userDivision = normalize(user.divisionName ?? branchInfo?.divisionName);
@@ -234,6 +242,7 @@ export default function AssessmentDetailClient() {
           const branchMatches = !targetBranch || userBranch === targetBranch;
           const divisionMatches = !targetDivision || userDivision === targetDivision;
           const locationMatches = !targetLocation || userLocation === targetLocation;
+
           return branchMatches && divisionMatches && locationMatches;
         })
         .map((user: any) => ({
@@ -382,7 +391,7 @@ export default function AssessmentDetailClient() {
                 Created At
               </p>
               <p className="text-gray-800">
-                {new Date(assessment.createdAt).toLocaleString()}
+                {formatAppDate(assessment.createdAt)}
               </p>
             </div>
 
@@ -405,7 +414,7 @@ export default function AssessmentDetailClient() {
                       Closed At
                     </p>
                     <p className="text-gray-800">
-                      {new Date(assessment.closedAt).toLocaleString()}
+                      {formatAppDate(assessment.closedAt)}
                     </p>
                   </div>
                 )}

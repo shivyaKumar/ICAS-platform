@@ -1,59 +1,43 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Layers, Building2, Users, UserPlus } from "lucide-react";
+
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { ChevronDown, ChevronRight } from "lucide-react";
-
-import React from "react";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
 import {
   Select,
+  SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  UserPlus,
-  Layers,
-  Building2,
-  Trash2,
-  Edit,
-} from "lucide-react";
 
-/* ---------- Types ---------- */
-interface Division {
-  id: number;
-  name: string;
-  description?: string;
-}
+import { DivisionHierarchy } from "./DivisionHierarchy";
+import { DivisionTable } from "./DivisionTable";
+import { BranchTable } from "./BranchTable";
+import { UserTable } from "./UserTable";
+import { SimpleModal } from "./SimpleModal";
+import type { Branch, Division, Role, User, ConfirmConfig } from "./types";
 
-interface Branch {
-  id: number;
-  name: string;
-  location: string;
-  divisionId: number;
-}
-
-interface User {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  branchId: number;
-  divisionId: number;
-  role: string;
-}
-
-interface Role {
-  id: number;
-  name: string;
-}
-
+/* ============================================================
+   USER MANAGEMENT PAGE — CLEAN, PRODUCTION-READY VERSION
+   ============================================================ */
 export default function UserManagementPage() {
+  const { toast } = useToast();
+
+  /* ---------- State ---------- */
   const [branches, setBranches] = useState<Branch[]>([]);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -68,15 +52,8 @@ export default function UserManagementPage() {
   const [editingDivisionId, setEditingDivisionId] = useState<number | null>(null);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
 
-  const [newBranch, setNewBranch] = useState({
-    name: "",
-    location: "",
-    divisionId: 0,
-  });
-  const [newDivision, setNewDivision] = useState({
-    name: "",
-    description: "",
-  });
+  const [newBranch, setNewBranch] = useState({ name: "", location: "", divisionId: 0 });
+  const [newDivision, setNewDivision] = useState({ name: "", description: "" });
   const [newUser, setNewUser] = useState({
     firstName: "",
     lastName: "",
@@ -87,34 +64,44 @@ export default function UserManagementPage() {
   });
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmConfig, setConfirmConfig] = useState<{
-    title: string;
-    description?: string;
-    onConfirm: () => void;
-  }>({ title: "", description: "", onConfirm: () => {} });
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig>({
+    title: "",
+    description: "",
+    onConfirm: () => {},
+  });
 
-  // Track expanded branches for showing users
-  const [expandedBranches, setExpandedBranches] = useState<{ [id: number]: boolean }>({});
+  /* ---------- Lookup Maps ---------- */
+  const branchLookup = useMemo(() => new Map(branches.map(b => [b.id, b])), [branches]);
+  const divisionLookup = useMemo(() => new Map(divisions.map(d => [d.id, d])), [divisions]);
 
-  const toggleBranch = (id: number) => {
-    setExpandedBranches((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const branchLookup = useMemo(() => {
-    const map = new Map<number, Branch>();
-    branches.forEach((branch) => map.set(branch.id, branch));
+  const branchesByDivision = useMemo(() => {
+    const map = new Map<number, Branch[]>();
+    branches.forEach(b => {
+      const arr = map.get(b.divisionId) ?? [];
+      arr.push(b);
+      map.set(b.divisionId, arr);
+    });
     return map;
   }, [branches]);
 
-  const formatBranchLabel = (branch?: Branch | null) => {
-    if (!branch) return "Branch not linked";
-    const location = (branch.location || "").trim();
-    return location.length > 0 ? `${branch.name} - ${location}` : branch.name;
-  };
+  const branchCountByDivision = useMemo(() => {
+    const map = new Map<number, number>();
+    branches.forEach(b => map.set(b.divisionId, (map.get(b.divisionId) ?? 0) + 1));
+    return map;
+  }, [branches]);
 
+  const userCountByBranch = useMemo(() => {
+    const map = new Map<number, number>();
+    users.forEach(u => map.set(u.branchId, (map.get(u.branchId) ?? 0) + 1));
+    return map;
+  }, [users]);
 
-  /* ---------- Fetch all data ---------- */
-  const reloadAll = async () => {
+  /* ---------- Helpers ---------- */
+  const formatBranchLabel = (branch?: Branch | null) =>
+    branch ? (branch.location ? `${branch.name} - ${branch.location}` : branch.name) : "Branch not linked";
+
+  /* ---------- Fetch All Data ---------- */
+  const reloadAll = useCallback(async () => {
     try {
       const [bRes, dRes, uRes, rRes, meRes] = await Promise.all([
         fetch("/api/branches"),
@@ -124,93 +111,129 @@ export default function UserManagementPage() {
         fetch("/api/me", { credentials: "include" }),
       ]);
 
-      if (!bRes.ok || !dRes.ok || !uRes.ok || !rRes.ok || !meRes.ok) {
+      if (![bRes, dRes, uRes, rRes, meRes].every(r => r.ok))
         throw new Error("Failed to reload data");
-      }
 
-      const [branchesData, divisionsData, usersData, rolesData, meData] =
-        await Promise.all([bRes.json(), dRes.json(), uRes.json(), rRes.json(), meRes.json()]);
+      const [b, d, u, r, me] = await Promise.all([
+        bRes.json(),
+        dRes.json(),
+        uRes.json(),
+        rRes.json(),
+        meRes.json(),
+      ]);
 
-      let filteredRoles = rolesData;
+      let filteredRoles = r;
+      const roleFromApi =
+        Array.isArray(me.roles) && me.roles.length > 0 ? me.roles[0] : me.role || "";
 
-      // Fix: correctly extract the first role from array
-      const roleFromApi = Array.isArray(meData.roles) && meData.roles.length > 0
-        ? meData.roles[0]
-        : meData.role || "";
+      if (roleFromApi === "IT Admin")
+        filteredRoles = r.filter((x: Role) => x.name !== "IT Admin");
+      else if (roleFromApi === "Admin")
+        filteredRoles = r.filter((x: Role) => x.name === "Standard User");
 
-      if (roleFromApi === "IT Admin") {
-        filteredRoles = rolesData.filter((r: Role) => r.name !== "IT Admin");
-      } else if (roleFromApi === "Admin") {
-        filteredRoles = rolesData.filter((r: Role) => r.name === "Standard User");
-      }
-
-      setBranches(branchesData);
-      setDivisions(divisionsData);
-      setUsers(usersData);
+      setBranches(b);
+      setDivisions(d);
+      setUsers(u.filter((user: User) => user.role !== "Super Admin"));
       setRoles(filteredRoles);
-      setCurrentRole(roleFromApi); // Now properly sets "Super Admin" or "IT Admin"
-
+      setCurrentRole(roleFromApi);
     } catch (err) {
-      console.error("Reload error", err);
-      alert("Error refreshing data.");
+      console.error("Reload error:", err);
+      toast({
+        title: "Unable to Refresh Data",
+        description: err instanceof Error ? err.message : "Unexpected error occurred.",
+        variant: "destructive",
+      });
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     reloadAll();
-  }, []);
+  }, [reloadAll]);
+
+  /* ---------- Permissions ---------- */
+  const canManageDivisions = currentRole === "Super Admin" || currentRole === "IT Admin";
+  const canManageUsers = currentRole !== "Staff";
+
+  /* ---------- Reset Helpers ---------- */
+  const resetBranch = () => setNewBranch({ name: "", location: "", divisionId: 0 });
+  const resetDivision = () => setNewDivision({ name: "", description: "" });
+  const resetUser = () =>
+    setNewUser({ firstName: "", lastName: "", email: "", divisionId: 0, branchId: 0, role: "" });
+
+  /* ---------- Dialog Control ---------- */
+  const closeAllDialogs = () => {
+    setShowAddBranch(false);
+    setShowAddDivision(false);
+    setShowAddUser(false);
+    setEditingBranchId(null);
+    setEditingDivisionId(null);
+    setEditingUserId(null);
+    resetBranch();
+    resetDivision();
+    resetUser();
+  };
 
   /* ---------- Branch Handlers ---------- */
   const handleSaveBranch = async () => {
-    if (!newBranch.name.trim() || !newBranch.location.trim()) {
-      return alert("Branch name and location are required");
+    if (!newBranch.name.trim() || !newBranch.location.trim() || !newBranch.divisionId) {
+      toast({
+        title: "Missing Details",
+        description: "Name, location, and division are required for a branch.",
+        variant: "destructive",
+      });
+      return;
     }
-    if (!newBranch.divisionId || newBranch.divisionId <= 0) {
-      return alert("You must select a division for this branch");
-    }
+    const method = editingBranchId ? "PUT" : "POST";
+    const endpoint = editingBranchId
+      ? `/api/branches/${editingBranchId}`
+      : "/api/branches";
 
     try {
-      const body = {
-        name: newBranch.name,
-        location: newBranch.location,
-        divisionId: newBranch.divisionId, // ? always send valid int
-      };
-
-      if (editingBranchId) {
-        await fetch(`/api/branches/${editingBranchId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        await fetch(`/api/branches`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      }
-
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBranch),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({
+        title: editingBranchId ? "Branch Updated" : "Branch Added",
+        description: `${newBranch.name} saved successfully.`,
+        variant: "success",
+      });
       await reloadAll();
+      closeAllDialogs();
     } catch (err) {
-      console.error("Save branch failed", err);
-      alert("Error saving branch");
+      toast({
+        title: "Branch Save Failed",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
     }
-
-    setNewBranch({ name: "", location: "", divisionId: 0 });
-    setEditingBranchId(null);
-    setShowAddBranch(false);
   };
 
   const handleDeleteBranch = (id: number) => {
+    const branch = branchLookup.get(id);
     setConfirmConfig({
       title: "Delete Branch?",
-      description: "Deleting this branch will also remove related users.",
+      description: `This will remove ${branch?.name ?? "this branch"} and its users.`,
       onConfirm: async () => {
         try {
-          await fetch(`/api/branches/${id}`, { method: "DELETE" });
+          const res = await fetch(`/api/branches/${id}`, { method: "DELETE" });
+          if (!res.ok) throw new Error(await res.text());
+          toast({
+            title: "Branch Deleted",
+            description: `${branch?.name ?? "Branch"} removed successfully.`,
+            variant: "success",
+          });
           await reloadAll();
-        } catch {
-          alert("Error deleting branch");
+        } catch (err) {
+          toast({
+            title: "Delete Failed",
+            description: err instanceof Error ? err.message : "Try again later.",
+            variant: "destructive",
+          });
+        } finally {
+          setConfirmOpen(false);
         }
       },
     });
@@ -220,429 +243,612 @@ export default function UserManagementPage() {
   /* ---------- Division Handlers ---------- */
   const handleSaveDivision = async () => {
     if (!newDivision.name.trim()) {
-      return alert("Division name is required");
+      toast({
+        title: "Division Name Required",
+        description: "Please provide a name before saving.",
+        variant: "destructive",
+      });
+      return;
     }
 
+    const method = editingDivisionId ? "PUT" : "POST";
+    const endpoint = editingDivisionId
+      ? `/api/divisions/${editingDivisionId}`
+      : "/api/divisions";
+
     try {
-      const body = {
-        name: newDivision.name,
-        description: newDivision.description || null,
-      };
-
-      let res;
-      if (editingDivisionId) {
-        res = await fetch(`/api/divisions/${editingDivisionId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        res = await fetch(`/api/divisions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      }
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        return alert(`Error saving division: ${errorText}`);
-      }
-
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newDivision),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({
+        title: editingDivisionId ? "Division Updated" : "Division Created",
+        description: `${newDivision.name} saved successfully.`,
+        variant: "success",
+      });
       await reloadAll();
-      setNewDivision({ name: "", description: "" });
-      setEditingDivisionId(null);
-      setShowAddDivision(false);
+      closeAllDialogs();
     } catch (err) {
-      console.error("Division save failed", err);
-      alert("Error saving division.");
+      toast({
+        title: "Division Save Failed",
+        description: err instanceof Error ? err.message : "Please try again later.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDeleteDivision = (id: number) => {
+    const div = divisionLookup.get(id);
     setConfirmConfig({
       title: "Delete Division?",
-      description: "Deleting this division will also remove its branches and users.",
+      description: `This will remove ${div?.name ?? "the division"} and all linked branches/users.`,
       onConfirm: async () => {
         try {
-          await fetch(`/api/divisions/${id}`, { method: "DELETE" });
+          const res = await fetch(`/api/divisions/${id}`, { method: "DELETE" });
+          if (!res.ok) throw new Error(await res.text());
+          toast({
+            title: "Division Deleted",
+            description: `${div?.name ?? "Division"} removed successfully.`,
+            variant: "success",
+          });
           await reloadAll();
-        } catch {
-          alert("Error deleting division");
+        } catch (err) {
+          toast({
+            title: "Delete Failed",
+            description: err instanceof Error ? err.message : "Try again later.",
+            variant: "destructive",
+          });
+        } finally {
+          setConfirmOpen(false);
         }
       },
     });
     setConfirmOpen(true);
   };
 
-  /* ---------- User Handlers ---------- */
-  const handleSaveUser = async () => {
-    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.branchId || !newUser.role) {
-      return alert("Fill in all fields.");
-    }
-
-    try {
-      const body = {
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        branchId: newUser.branchId,
-        role: newUser.role,
-      };
-
-      if (editingUserId) {
-        await fetch(`/api/users/${editingUserId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+     /* ---------- User Handlers ---------- */
+    const handleSaveUser = async () => {
+      if (
+        !newUser.firstName.trim() ||
+        !newUser.lastName.trim() ||
+        !newUser.email.trim() ||
+        !newUser.branchId ||
+        !newUser.role
+      ) {
+        toast({
+          title: "Incomplete User Details",
+          description: "All fields are required before saving.",
+          variant: "destructive",
         });
-      } else {
-        await fetch(`/api/users`, {
-          method: "POST",
+        return;
+      }
+
+      const method = editingUserId ? "PUT" : "POST";
+      const endpoint = editingUserId
+        ? `/api/users/${editingUserId}`
+        : "/api/users";
+
+      try {
+        const res = await fetch(endpoint, {
+          method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify(newUser),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        toast({
+          title: editingUserId ? "User Updated" : "User Added",
+          description: `${newUser.firstName} ${newUser.lastName} saved successfully.`,
+          variant: "success",
+        });
+        await reloadAll();
+        closeAllDialogs();
+      } catch (err) {
+        let message = "Please try again.";
+
+        if (err instanceof Error) {
+          try {
+            const parsed = JSON.parse(err.message);
+
+            // Detect duplicate email/username and show friendly message
+            if (Array.isArray(parsed)) {
+              const duplicateErrors = parsed.some(
+                e => e.code === "DuplicateUserName" || e.code === "DuplicateEmail"
+              );
+
+              if (duplicateErrors) {
+                message = "Email or username already exists.";
+              } else {
+                message = parsed.map(e => e.description || e.code).join(" | ");
+              }
+            } else if (parsed.description) {
+              message = parsed.description;
+            } else {
+              message = err.message;
+            }
+          } catch {
+            message = err.message;
+          }
+        }
+
+        toast({
+          title: "User Save Failed",
+          description: message,
+          variant: "destructive",
         });
       }
 
-      await reloadAll();
-    } catch (err) {
-      console.error("User save failed", err);
-      alert("Error saving user.");
+    };
+
+    const handleDeleteUser = (id: number) => {
+      const user = users.find(u => u.id === id);
+      setConfirmConfig({
+        title: "Delete User?",
+        description: `This will permanently remove ${user?.firstName ?? "this user"}.`,
+        onConfirm: async () => {
+          try {
+            const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error(await res.text());
+            toast({
+              title: "User Deleted",
+              description: `${user?.firstName ?? "User"} removed successfully.`,
+              variant: "success",
+            });
+            await reloadAll();
+          } catch (err) {
+            toast({
+              title: "Delete Failed",
+              description: err instanceof Error ? err.message : "Please try again later.",
+              variant: "destructive",
+            });
+          } finally {
+            setConfirmOpen(false);
+          }
+        },
+      });
+      setConfirmOpen(true);
+    };
+
+    /* ---------- Edit Handlers ---------- */
+    const handleEditDivision = (d: Division) => {
+      setNewDivision({ name: d.name, description: d.description || "" });
+      setEditingDivisionId(d.id);
+      setShowAddDivision(true);
+    };
+
+    const handleEditBranch = (b: Branch) => {
+      setNewBranch({ name: b.name, location: b.location, divisionId: b.divisionId });
+      setEditingBranchId(b.id);
+      setShowAddBranch(true);
+    };
+
+    const handleEditUser = (u: User) => {
+      const branch = branches.find(b => b.id === u.branchId);
+      setNewUser({
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        branchId: u.branchId,
+        divisionId: branch ? branch.divisionId : u.divisionId,
+        role: u.role,
+      });
+      setEditingUserId(u.id);
+      setShowAddUser(true);
+    };
+
+    /* ---------- Stats & UI ---------- */
+    const stats = [
+      { icon: Layers, label: "Divisions", value: divisions.length, desc: "Active organisational divisions" },
+      { icon: Building2, label: "Branches", value: branches.length, desc: "Branch locations under divisions" },
+      { icon: Users, label: "Users", value: users.length, desc: "Total user accounts" },
+    ];
+
+    const actions: { key: string; icon: LucideIcon; label: string; onClick: () => void }[] = [];
+    if (canManageDivisions) {
+      actions.push(
+        {
+          key: "add-division",
+          icon: Layers,
+          label: "Add Division",
+          onClick: () => {
+            resetDivision();
+            setEditingDivisionId(null);
+            closeAllDialogs();
+            setShowAddDivision(true);
+          },
+        },
+        {
+          key: "add-branch",
+          icon: Building2,
+          label: "Add Branch",
+          onClick: () => {
+            resetBranch();
+            setEditingBranchId(null);
+            closeAllDialogs();
+            setShowAddBranch(true);
+          },
+        }
+      );
+    }
+    if (canManageUsers) {
+      actions.push({
+        key: "add-user",
+        icon: UserPlus,
+        label: "Add User",
+        onClick: () => {
+          resetUser();
+          setEditingUserId(null);
+          closeAllDialogs();
+          setShowAddUser(true);
+        },
+      });
     }
 
-    setNewUser({ firstName: "", lastName: "", email: "", divisionId: 0, branchId: 0, role: "" });
-    setEditingUserId(null);
-    setShowAddUser(false);
-  };
+    /* ---------- MAIN UI ---------- */
+    return (
+      <div className="space-y-6">
+        <ConfirmDialog
+          open={confirmOpen}
+          title={confirmConfig.title}
+          description={confirmConfig.description}
+          onConfirm={confirmConfig.onConfirm}
+          onCancel={() => setConfirmOpen(false)}
+        />
 
-  const handleDeleteUser = (id: number) => {
-    setConfirmConfig({
-      title: "Delete User?",
-      description: "Deleting this user will permanently remove their account.",
-      onConfirm: async () => {
-        try {
-          await fetch(`/api/users/${id}`, { method: "DELETE" });
-          await reloadAll();
-        } catch {
-          alert("Error deleting user");
-        }
-      },
-    });
-    setConfirmOpen(true);
-  };
-
-  /* ---------- Edit Handlers ---------- */
-  const handleEditBranch = (branch: Branch) => {
-    setNewBranch({
-      name: branch.name,
-      location: branch.location,
-      divisionId: branch.divisionId,
-    });
-    setEditingBranchId(branch.id);
-    setShowAddBranch(true);
-  };
-
-  const handleEditDivision = (division: Division) => {
-    setNewDivision({
-      name: division.name,
-      description: division.description || "",
-    });
-    setEditingDivisionId(division.id);
-    setShowAddDivision(true);
-  };
-
-  const handleEditUser = (user: User) => {
-    const branch = branches.find((b) => b.id === user.branchId);
-    const divisionId = branch ? branch.divisionId : 0;
-
-    setNewUser({
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      branchId: user.branchId,
-      divisionId,
-      role: user.role,
-    });
-
-    setEditingUserId(user.id);
-    setShowAddUser(true);
-  };
-
-  /* ---------- UI ---------- */
-  return (
-    <div className="px-3 sm:px-4 md:px-6 py-4 space-y-6 min-w-0">
-      <ConfirmDialog
-        open={confirmOpen}
-        title={confirmConfig.title}
-        description={confirmConfig.description}
-        onConfirm={() => {
-          confirmConfig.onConfirm();
-          setConfirmOpen(false);
-        }}
-        onCancel={() => setConfirmOpen(false)}
-      />
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage divisions, branches, and users
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {/* Only Super Admin & IT Admin can manage divisions */}
-          {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
-            <Button onClick={() => { setShowAddDivision(true); setEditingDivisionId(null); }}>
-              <Layers className="h-4 w-4" /> Add Division
-            </Button>
-          )}
-
-          {/* Only Super Admin & IT Admin can manage branches */}
-          {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
-            <Button onClick={() => { setShowAddBranch(true); setEditingBranchId(null); }}>
-              <Building2 className="h-4 w-4" /> Add Branch
-            </Button>
-          )}
-
-          {/* Everyone except Staff can add users */}
-          {currentRole !== "Staff" && (
-            <Button onClick={() => { setShowAddUser(true); setEditingUserId(null); }}>
-              <UserPlus className="h-4 w-4" /> Add User
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Division ? Branch ? User hierarchy */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Organization Structure</h2>
-        <div className="divide-y rounded-lg border border-gray-200 shadow bg-white">
-          {divisions.length === 0 && (
-            <div className="p-4 text-sm text-center text-muted-foreground">
-              No divisions yet.
+        {/* --- Page Header & Summary --- */}
+        <Card className="border shadow-sm">
+          <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl md:text-3xl font-bold">User Management</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Manage divisions, branches, and user access across the organisation.
+              </p>
             </div>
-          )}
+            <div className="flex flex-wrap gap-2">
+              {actions.map(({ key, icon: Icon, label, onClick }) => (
+                <Button key={key} size="sm" variant="primary" onClick={onClick}>
+                  <Icon className="h-4 w-4" />
+                  <span className="ml-2">{label}</span>
+                </Button>
+              ))}
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {stats.map(s => (
+              <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} description={s.desc} />
+            ))}
+          </CardContent>
+        </Card>
 
-          {divisions.map((d) => (
-            <div key={d.id} className="p-4">
-              {/* Division Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-semibold text-lg">
-                  <Layers className="h-4 w-4 text-gray-600" />
-                  {d.name}
-                  <span className="ml-1 text-xs text-gray-500">
-                    ({branches.filter((b) => b.divisionId === d.id).length} branches)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
-                    <>
-                      <Button size="icon" variant="ghost" onClick={() => handleEditDivision(d)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => handleDeleteDivision(d.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
+        {/* --- Tabs Section --- */}
+        <Tabs defaultValue="hierarchy" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+            <TabsTrigger value="hierarchy">Hierarchy</TabsTrigger>
+            <TabsTrigger value="divisions">Divisions</TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+          </TabsList>
 
-              {/* Branches under this Division */}
-              <div className="ml-6 mt-3 space-y-3 border-l pl-4">
-                {branches.filter((b) => b.divisionId === d.id).length === 0 && (
-                  <p className="text-sm text-muted-foreground">No branches yet.</p>
+          {/* --- Hierarchy --- */}
+          <TabsContent value="hierarchy">
+            <DivisionHierarchy
+              divisions={divisions}
+              branchesByDivision={branchesByDivision}
+              userCountByBranch={userCountByBranch}
+              EmptyState={EmptyState}
+            />
+          </TabsContent>
+
+          {/* --- Divisions --- */}
+          <TabsContent value="divisions">
+            <Card className="border shadow-sm">
+              <CardHeader>
+                <CardTitle>Divisions</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Overview of all configured divisions.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {divisions.length ? (
+                  <DivisionTable
+                    divisions={divisions}
+                    branchCounts={branchCountByDivision}
+                    canManage={canManageDivisions}
+                    onEdit={handleEditDivision}
+                    onDelete={handleDeleteDivision}
+                  />
+                ) : (
+                  <EmptyState message="No divisions created yet." />
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                {branches.filter((b) => b.divisionId === d.id).map((b) => (
-                  <div key={b.id} className="p-3 rounded-md border bg-gray-50">
-                    {/* Branch Row */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 font-medium">
-                        <Building2 className="h-4 w-4 text-gray-600" />
-                        <span>{b.name}</span>
-                        {b.location && (
-                          <span className="text-xs text-gray-500"> - {b.location}</span>
-                        )}
-                        <span className="ml-1 text-xs text-gray-500">
-                          ({users.filter((u) => u.branchId === b.id).length} users)
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="icon" variant="ghost" onClick={() => toggleBranch(b.id)}>
-                          {expandedBranches[b.id] ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </Button>
-                        {(currentRole === "Super Admin" || currentRole === "IT Admin") && (
-                          <>
-                            <Button size="icon" variant="ghost" onClick={() => handleEditBranch(b)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => handleDeleteBranch(b.id)}>
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+          {/* --- Branches --- */}
+          <TabsContent value="branches">
+            <Card className="border shadow-sm">
+              <CardHeader>
+                <CardTitle>Branches</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  List of branches under their respective divisions.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {branches.length ? (
+                  <BranchTable
+                    branches={branches}
+                    divisionLookup={divisionLookup}
+                    userCountByBranch={userCountByBranch}
+                    canManage={canManageDivisions}
+                    onEdit={handleEditBranch}
+                    onDelete={handleDeleteBranch}
+                  />
+                ) : (
+                  <EmptyState message="No branches have been added yet." />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                    {/* Users under Branch */}
-                    {expandedBranches[b.id] && (
-                      <div className="mt-2 ml-6 space-y-2 border-l pl-4">
-                        {users.filter((u) => u.branchId === b.id).length === 0 && (
-                          <p className="text-sm text-muted-foreground">No users yet.</p>
-                        )}
-                        {users.filter((user) => user.branchId === b.id).map((user) => {
-                          const branchInfo = branchLookup.get(user.branchId);
-                          const branchLabel = formatBranchLabel(branchInfo);
-                          return (
-                            <div
-                              key={user.id}
-                              className="flex items-center justify-between rounded bg-white p-2 shadow-sm"
-                            >
-                              {/* Left side: user info */}
-                              <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-6">
-                                <span className="text-sm font-medium">
-                                  {user.firstName} {user.lastName}
-                                </span>
-                                <span className="text-xs text-gray-600">{user.email}</span>
-                                <span className="text-xs text-gray-500 italic">{user.role}</span>
-                                <span className="text-xs text-gray-500">{branchLabel}</span>
-                              </div>
+          {/* --- Users --- */}
+          <TabsContent value="users">
+            <Card className="border shadow-sm">
+              <CardHeader>
+                <CardTitle>Users</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage user accounts, roles, and branch assignments.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {users.length ? (
+                  <UserTable
+                    users={users}
+                    branchLookup={branchLookup}
+                    divisionLookup={divisionLookup}
+                    formatBranchLabel={formatBranchLabel}
+                    onEdit={handleEditUser}
+                    onDelete={handleDeleteUser}
+                  />
+                ) : (
+                  <EmptyState message="No users available. Add a user to populate this list." />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-                              {/* Right side: action buttons */}
-                              <div className="flex gap-1">
-                                <Button size="icon" variant="ghost" onClick={() => handleEditUser(user)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button size="icon" variant="ghost" onClick={() => handleDeleteUser(user.id)}>
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+        {/* ---------- MODALS ---------- */}
+        {/* Division Modal */}
+        <SimpleModal
+          open={showAddDivision}
+          onOpenChange={(open) => {
+            if (!open) closeAllDialogs();
+            else setShowAddDivision(true);
+          }}
+
+          title={editingDivisionId ? "Edit Division" : "Add Division"}
+          description="Define top-level organisational units."
+          size="lg"
+          footer={
+            <Button
+              onClick={handleSaveDivision}
+              variant={editingDivisionId ? "secondary" : undefined}
+              size={editingDivisionId ? "sm" : "default"}
+            >
+              {editingDivisionId ? "Update Division" : "Save Division"}
+            </Button>
+          }
+        >
+          <FormField id="division-name" label="Division Name">
+            <Input
+              value={newDivision.name}
+              onChange={e => setNewDivision({ ...newDivision, name: e.target.value })}
+            />
+          </FormField>
+          <FormField id="division-description" label="Description">
+            <Input
+              value={newDivision.description}
+              onChange={e => setNewDivision({ ...newDivision, description: e.target.value })}
+            />
+          </FormField>
+        </SimpleModal>
+
+        {/* Branch Modal */}
+        <SimpleModal
+          open={showAddBranch}
+          onOpenChange={(open) => {
+            if (!open) closeAllDialogs();
+            else setShowAddBranch(true);
+          }}
+
+          title={editingBranchId ? "Edit Branch" : "Add Branch"}
+          description="Branches represent offices or operating units."
+          size="lg"
+          footer={
+            <Button
+              onClick={handleSaveBranch}
+              variant={editingBranchId ? "secondary" : undefined}
+              size={editingBranchId ? "sm" : "default"}
+            >
+              {editingBranchId ? "Update Branch" : "Save Branch"}
+            </Button>
+          }
+        >
+          <FormField id="branch-name" label="Branch Name">
+            <Input
+              value={newBranch.name}
+              onChange={e => setNewBranch({ ...newBranch, name: e.target.value })}
+            />
+          </FormField>
+          <FormField id="branch-location" label="Location">
+            <Input
+              value={newBranch.location}
+              onChange={e => setNewBranch({ ...newBranch, location: e.target.value })}
+            />
+          </FormField>
+          <FormField id="branch-division" label="Division">
+            <Select
+              value={newBranch.divisionId ? newBranch.divisionId.toString() : ""}
+              onValueChange={v => setNewBranch({ ...newBranch, divisionId: Number(v) })}
+            >
+              <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
+              <SelectContent>
+                {divisions.map(d => (
+                  <SelectItem key={d.id} value={d.id.toString()}>
+                    {d.name}
+                  </SelectItem>
                 ))}
-              </div>
+              </SelectContent>
+            </Select>
+          </FormField>
+        </SimpleModal>
+
+        {/* User Modal */}
+        <SimpleModal
+          open={showAddUser}
+          onOpenChange={(open) => {
+            if (!open) closeAllDialogs();
+            else setShowAddUser(true);
+          }}
+
+          title={editingUserId ? "Edit User" : "Add User"}
+          description="Assign a user to a branch and define their role."
+          size="xl"
+          footer={
+            <Button
+              onClick={handleSaveUser}
+              variant={editingUserId ? "secondary" : undefined}
+              size={editingUserId ? "sm" : "default"}
+            >
+              {editingUserId ? "Update User" : "Save User"}
+            </Button>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField id="user-first-name" label="First Name">
+              <Input
+                value={newUser.firstName}
+                onChange={e => setNewUser({ ...newUser, firstName: e.target.value })}
+              />
+            </FormField>
+            <FormField id="user-last-name" label="Last Name">
+              <Input
+                value={newUser.lastName}
+                onChange={e => setNewUser({ ...newUser, lastName: e.target.value })}
+              />
+            </FormField>
+
+            <div className="md:col-span-2">
+              <FormField id="user-email" label="Email">
+                <Input
+                  type="email"
+                  value={newUser.email}
+                  onChange={e => setNewUser({ ...newUser, email: e.target.value })}
+                />
+              </FormField>
             </div>
-          ))}
-        </div>
+
+            <FormField id="user-division" label="Division">
+              <Select
+                value={newUser.divisionId ? newUser.divisionId.toString() : ""}
+                onValueChange={v =>
+                  setNewUser({ ...newUser, divisionId: Number(v), branchId: 0 })
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
+                <SelectContent>
+                  {divisions.map(d => (
+                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <FormField id="user-branch" label="Branch">
+              <Select
+                value={newUser.branchId ? newUser.branchId.toString() : ""}
+                onValueChange={v => setNewUser({ ...newUser, branchId: Number(v) })}
+                disabled={!newUser.divisionId}
+              >
+                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
+                <SelectContent>
+                  {branches
+                    .filter(b => b.divisionId === newUser.divisionId)
+                    .map(b => (
+                      <SelectItem key={b.id} value={b.id.toString()}>
+                        {formatBranchLabel(b)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+
+            <div className="md:col-span-2">
+              <FormField id="user-role" label="Role">
+                <Select
+                  value={newUser.role}
+                  onValueChange={v => setNewUser({ ...newUser, role: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectContent>
+                    {roles.map(r => (
+                      <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
+          </div>
+        </SimpleModal>
       </div>
+    );
+  }
 
-
-      {/* Modals */}
-      {showAddBranch && (
-        <Modal title={editingBranchId ? "Edit Branch" : "Add Branch"} onClose={() => { setShowAddBranch(false); setEditingBranchId(null); }}>
-          <Label>Branch Name</Label>
-          <Input value={newBranch.name} onChange={(e) => setNewBranch({ ...newBranch, name: e.target.value })} />
-
-          <Label>Location</Label>
-          <Input value={newBranch.location} onChange={(e) => setNewBranch({ ...newBranch, location: e.target.value })} />
-
-          <Label>Division</Label>
-          <Select value={newBranch.divisionId ? newBranch.divisionId.toString() : ""} onValueChange={(value) => setNewBranch({ ...newBranch, divisionId: Number(value) })}>
-            <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
-            <SelectContent>
-              {divisions.map((d) => (
-                <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={handleSaveBranch} className="w-full">
-            {editingBranchId ? "Update Branch" : "Save Branch"}
-          </Button>
-        </Modal>
-      )}
-
-      {showAddDivision && (
-        <Modal title={editingDivisionId ? "Edit Division" : "Add Division"} onClose={() => { setShowAddDivision(false); setEditingDivisionId(null); }}>
-          <Label>Division Name</Label>
-          <Input value={newDivision.name} onChange={(e) => setNewDivision({ ...newDivision, name: e.target.value })} placeholder="Enter division name" />
-
-          <Label>Description</Label>
-          <Input value={newDivision.description} onChange={(e) => setNewDivision({ ...newDivision, description: e.target.value })} placeholder="Enter description" />
-
-          <Button onClick={handleSaveDivision} className="w-full">
-            {editingDivisionId ? "Update Division" : "Save Division"}
-          </Button>
-        </Modal>
-      )}
-
-      {showAddUser && (
-        <Modal title={editingUserId ? "Edit User" : "Add User"} onClose={() => { setShowAddUser(false); setEditingUserId(null); }}>
-          <Label>First Name</Label>
-          <Input value={newUser.firstName} onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })} />
-
-          <Label>Last Name</Label>
-          <Input value={newUser.lastName} onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })} />
-
-          <Label>Email</Label>
-          <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-
-          <Label>Division</Label>
-          <Select value={newUser.divisionId ? newUser.divisionId.toString() : ""} onValueChange={(value) => setNewUser({ ...newUser, divisionId: Number(value), branchId: 0 })}>
-            <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
-            <SelectContent>
-              {divisions.map((d) => (
-                <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Label>Branch</Label>
-          <Select value={newUser.branchId ? newUser.branchId.toString() : ""} onValueChange={(value) => setNewUser({ ...newUser, branchId: Number(value) })}>
-            <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-            <SelectContent>
-              {branches.filter((branch) => branch.divisionId === newUser.divisionId).map((branch) => (
-                <SelectItem key={branch.id} value={branch.id.toString()}>
-                  {formatBranchLabel(branch)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Label>Role</Label>
-          <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
-            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button onClick={handleSaveUser} className="w-full">
-            {editingUserId ? "Update User" : "Save User"}
-          </Button>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-/* ---------- Simple Modal ---------- */
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void; }) {
+/* ---------- Supporting Components ---------- */
+function FormField({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
-    <div className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,42rem)]">
-      <Card className="relative rounded-2xl shadow-2xl border">
-        <button className="absolute top-2 right-3 text-gray-500 hover:text-black text-xl" onClick={onClose}>
-          x
-        </button>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 p-5 max-h-[75vh] overflow-y-auto">
-          {children}
-        </CardContent>
-      </Card>
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
     </div>
   );
 }
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  description?: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-white p-4 shadow-sm">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-xl font-semibold">{value}</p>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ message, compact = false }: { message: string; compact?: boolean }) {
+  return (
+    <div
+      className={`rounded-md border border-dashed text-center text-sm text-muted-foreground ${
+        compact ? "bg-white px-4 py-3" : "bg-muted/30 px-6 py-8"
+      }`}
+    >
+      {message}
+    </div>
+  );
+}
+

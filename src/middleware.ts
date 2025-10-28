@@ -29,14 +29,16 @@ export async function middleware(req: NextRequest) {
 
   // --- Protect /admin routes ---
   if (path.startsWith("/admin")) {
-    if (!roles.includes("Super Admin") && !roles.includes("IT Admin") && !roles.includes("Admin")) {
+    if (!roles.includes("Super Admin") && !roles.includes("IT Admin")) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
   }
 
   // --- Protect /staff routes ---
   if (path.startsWith("/staff")) {
-    if (!roles.includes("Super Admin") && !roles.includes("Standard User")) {
+    if (!roles.includes("Super Admin") &&
+        !roles.includes("Admin") &&
+        !roles.includes("Standard User")) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
   }

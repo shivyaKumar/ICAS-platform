@@ -11,28 +11,28 @@ export default function Header({
   onToggleSidebar: () => void;
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<{ email: string; fullName?: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
   // Load logged-in user info
   useEffect(() => {
-    async function fetchUser() {
-      try {
-        const res = await fetch("/api/me", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUserEmail(data.email);
-        }
-      } catch (err) {
-        console.error("Failed to load user:", err);
+  async function fetchUser() {
+    try {
+      const res = await fetch("/api/me", {
+        method: "GET",
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser({ email: data.email, fullName: data.fullName });
       }
+    } catch (err) {
+      console.error("Failed to load user:", err);
     }
-    fetchUser();
-  }, []);
+  }
+  fetchUser();
+}, []);
 
   // Logout handler
   const handleLogout = async () => {
@@ -48,7 +48,11 @@ export default function Header({
     }
   };
 
-  const userInitials = userEmail ? userEmail.charAt(0).toUpperCase() : "?";
+  const userInitials = user?.fullName
+  ? user.fullName.charAt(0).toUpperCase()
+  : user?.email
+  ? user.email.charAt(0).toUpperCase()
+  : "?";
 
   // Close dropdown if clicking outside
   useEffect(() => {
@@ -113,7 +117,7 @@ export default function Header({
             style={{ minWidth: "12rem" }}
           >
             <div className="px-4 py-2 text-sm text-gray-700 border-b break-words">
-              {userEmail ?? "Loading..."}
+              {user?.fullName || user?.email || "Loading..."}
             </div>
             <button
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

@@ -13,6 +13,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Finding } from "@/types/assessment";
 import EvidenceDrawer from "@/components/assessments/EvidenceDrawer";
 import CommentSection from "@/components/assessments/CommentSection";
+import { formatAppDate } from "@/lib/date";
 
 interface AssessmentTableProps {
   findings: Finding[];
@@ -372,7 +373,7 @@ export default function AssessmentTable({
                 </TableCell>
                 <TableCell className="px-4 py-3 text-gray-700 text-center">
                   {f.modifiedDate
-                    ? new Date(f.modifiedDate).toLocaleString()
+                    ? formatAppDate(f.modifiedDate)
                     : "—"}
                 </TableCell>
               </TableRow>

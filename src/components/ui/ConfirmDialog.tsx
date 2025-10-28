@@ -20,10 +20,7 @@ export function ConfirmDialog({ open, title, description, onConfirm, onCancel }:
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </DialogHeader>
         <DialogFooter className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={onConfirm}>
+          <Button variant="primary" size="sm" onClick={onConfirm}>
             Confirm
           </Button>
         </DialogFooter>
