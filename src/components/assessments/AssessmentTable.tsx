@@ -55,31 +55,50 @@ export default function AssessmentTable({
 
   const handleChange = async (id: number, field: string, value: string) => {
     try {
+      // Instantly update UI (status color changes immediately)
       setLocalFindings((prev) =>
-        prev.map((f) =>
-          f.id === id
-            ? { ...f, [field]: value, modifiedDate: new Date().toISOString() }
-            : f
-        )
+        prev.map((f) => {
+          if (f.id !== id) return f;
+
+          let newStatus = f.status;
+          if (field === "review") {
+            if (value === "Approved") newStatus = "Approved";
+            else if (value === "Rejected") newStatus = "Rejected";
+            else newStatus = "In Progress"; // when reset to blank
+          }
+
+          return {
+            ...f,
+            [field]: value,
+            status: newStatus,
+            modifiedDate: new Date().toISOString(),
+          };
+        })
       );
 
+      // Choose correct backend endpoint
       const endpoint =
-        field === "review"
+        field === "review" && value !== ""
           ? `/api/assessments/review-finding/${id}`
           : `/api/assessments/update-finding/${id}`;
 
+      // Send request to backend
       const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify({ [field]: value || "" }), // blank resets status
       });
+
       if (!res.ok) throw new Error(await res.text());
+
+      // Trigger parent refresh (progress recalculation)
       await onRefresh?.();
     } catch (err) {
       console.error("Update failed:", err);
       await onRefresh?.();
     }
   };
+
 
   if (!localFindings?.length)
     return (
