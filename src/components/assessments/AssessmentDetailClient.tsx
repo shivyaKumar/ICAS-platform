@@ -72,6 +72,7 @@ function mapFinding(raw: unknown): Finding {
     domain: getString("domain"),
     status: getString("status"),
     compliance: getString("compliance"),
+    priority: getString("priority"),
     evidenceRequired:
       typeof source.evidenceRequired === "boolean"
         ? (source.evidenceRequired as boolean)

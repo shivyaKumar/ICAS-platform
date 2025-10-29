@@ -25,7 +25,8 @@ export interface Finding {
   description: string;
   domain: string;
   status: string;                 // "In Progress" | "Approved" | "Rejected"
-  compliance: string;             // "Yes" | "No" | "Partially" | "N/A"
+  compliance: string;
+  priority?: string | null;             // "Yes" | "No" | "Partially" | "N/A"
   evidenceRequired: boolean;
 
   evidences?: Evidence[];

@@ -105,6 +105,7 @@ export default function AssessmentTable({
               "Review",
               "Comments",
               "Assigned To",
+              "Priority",
               "Created By",
               "Modified",
             ].map((header) => (
@@ -365,6 +366,50 @@ export default function AssessmentTable({
                       </option>
                     ))}
                   </select>
+                </TableCell>
+
+                {/* ---------- Priority ---------- */}
+                <TableCell className="px-4 py-3 border-r border-gray-200 text-center">
+                  {!isCompleted &&
+                  ["itadmin", "superadmin", "admin"].includes(
+                    userRole?.toLowerCase().replace(/\s+/g, "")
+                  ) ? (
+                    <select
+                      className={`border border-gray-300 rounded-md w-[140px] text-center p-1.5 text-sm font-medium
+                        focus:ring-2 focus:ring-blue-300
+                        ${
+                          f.priority?.toLowerCase() === "high"
+                            ? "bg-red-100 text-red-800"
+                            : f.priority?.toLowerCase() === "medium"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : f.priority?.toLowerCase() === "low"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-white text-gray-700"
+                        }`}
+                      value={f.priority || ""}
+                      onChange={(e) => handleChange(f.id, "priority", e.target.value)}
+                    >
+                      <option value="">Select</option>
+                      <option value="High">High</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  ) : (
+                    <span
+                      className={`px-3 py-1 rounded-full text-[12px] font-semibold inline-block
+                        ${
+                          f.priority?.toLowerCase() === "high"
+                            ? "bg-red-100 text-red-700"
+                            : f.priority?.toLowerCase() === "medium"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : f.priority?.toLowerCase() === "low"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                    >
+                      {f.priority || "—"}
+                    </span>
+                  )}
                 </TableCell>
 
                 {/* ---------- Created & Modified ---------- */}
