@@ -124,16 +124,29 @@ export default function CreateAssessmentPage() {
       setAssessmentScope("");
       setAssessmentDate("");
       setDueDate("");
-    } catch (err) {
-      console.error("Error creating assessment:", err);
-      toast({
-        title: "Error Creating Assessment",
-        description: "Something went wrong. Please try again later.",
-        variant: "destructive", // Red for errors
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+        } catch (err: unknown) {
+          const error = err as { message?: string };
+          console.error("Error creating assessment:", error);
+
+          let msg = "Something went wrong. Please try again later.";
+
+          try {
+            const parsed = JSON.parse(error.message ?? "{}");
+            msg = parsed.message || msg;
+          } catch {
+            if (error.message?.includes("message:"))
+              msg = error.message.split("message:")[1].replace(/[{}]+/g, "").trim();
+          }
+
+          toast({
+            title: "Error Creating Assessment",
+            description: msg,
+            variant: "destructive", // Red for errors
+          });
+        } finally {
+          setIsSubmitting(false);
+        }
+
   };
 
 
