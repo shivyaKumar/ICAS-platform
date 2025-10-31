@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link"; // ✅ added
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FijiNewsSlider from "@/components/ui/FijiNewsSlider";
 import FijiCyberNewsSlider from "@/components/ui/FijiCyberNewsSlider";
@@ -198,7 +199,7 @@ export default function AdminDashboardPage() {
       <section className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition mb-4">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-semibold text-gray-800">Latest News & Updates</h2>
-          <a href="/dashboard/news" className="text-sm text-indigo-600 hover:underline">
+        <a href="/dashboard/news" className="text-sm text-indigo-600 hover:underline">
             View More →
           </a>
         </div>
@@ -210,28 +211,43 @@ export default function AdminDashboardPage() {
 
       {/* Top Metrics */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
-        {metrics.map((m) => (
-          <Card
-            key={m.title}
-            className="bg-white shadow-md rounded-xl border border-gray-100 hover:scale-[1.03] hover:shadow-xl transition-all duration-300"
-          >
-            <CardHeader>
-              <CardTitle className="text-gray-800 text-sm md:text-base font-semibold">
-                {m.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-3xl md:text-4xl font-extrabold ${metricGradient}`}
-              >
-                {m.value}
-              </div>
-              {m.subtitle && (
-                <p className="text-xs md:text-sm text-gray-500 mt-1">{m.subtitle}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {metrics.map((m) => {
+          const href =
+            m.title === "Active Assessments"
+              ? "/admin/assessments/current"
+              : m.title === "Completed"
+              ? "/admin/assessments/completed"
+              : undefined;
+
+          const CardBody = (
+            <Card
+              key={m.title}
+              className="bg-white shadow-md rounded-xl border border-gray-100 hover:scale-[1.03] hover:shadow-xl transition-all duration-300 cursor-pointer"
+            >
+              <CardHeader>
+                <CardTitle className="text-gray-800 text-sm md:text-base font-semibold">
+                  {m.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-3xl md:text-4xl font-extrabold ${metricGradient}`}>
+                  {m.value}
+                </div>
+                {m.subtitle && (
+                  <p className="text-xs md:text-sm text-gray-500 mt-1">{m.subtitle}</p>
+                )}
+              </CardContent>
+            </Card>
+          );
+
+          return href ? (
+            <Link key={m.title} href={href} className="block">
+              {CardBody}
+            </Link>
+          ) : (
+            CardBody
+          );
+        })}
       </section>
 
       {/* Division + Branch Progress */}

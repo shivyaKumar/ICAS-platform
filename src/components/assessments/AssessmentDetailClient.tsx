@@ -171,6 +171,9 @@ export default function AssessmentDetailClient() {
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>("");
 
+  // 🔹 base API (used by download links)
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
   const loadAssessment = useCallback(async () => {
     console.log("Reloading assessment from server...");
     if (!Number.isFinite(numericId)) {
@@ -194,7 +197,7 @@ export default function AssessmentDetailClient() {
 
       // Always fetch assessment
       const detailRes = await fetch(detailPath, { credentials: "include", cache: "no-store" });
-      if (!detailRes.ok) throw new Error(await detailRes.text());
+      if (!detailRes.ok) throw new Error(await res.text());
       const detailData = await detailRes.json();
 
       // Only admins should fetch users/branches
@@ -215,7 +218,6 @@ export default function AssessmentDetailClient() {
         if (usersRes.ok) usersData = await usersRes.json();
         if (branchesRes.ok) branches = await branchesRes.json();
       }
-
 
       /* ------------------ Build Assignable User List ------------------ */
       const branchLookup = new Map<number, any>();
@@ -433,11 +435,26 @@ export default function AssessmentDetailClient() {
         </CardContent>
       </Card>
 
-
       <Card>
-        <CardHeader>
+        {/* 🔽 Button updated: CSV removed, XLSX renamed to "Export Report" */}
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Assessment Findings</CardTitle>
+
+          {(assessment.isClosed === true ||
+            (assessment.status ?? "").trim().toLowerCase() === "completed") && (
+            <div className="flex gap-2">
+              <a
+                href={`${base}/api/assessments/${numericId}/export/xlsx`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium border-green-600 text-green-700 hover:bg-green-50"
+              >
+                Export Report
+              </a>
+            </div>
+          )}
         </CardHeader>
+
         <CardContent>
           <AssessmentTable
             findings={assessment.findings ?? []}
