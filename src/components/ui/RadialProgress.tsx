@@ -1,16 +1,23 @@
 'use client';
 
 import { Card } from '@/components/ui/card';
-import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, ChartData } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip);
 
 type Props = { label: string; percent: number; size?: number };
 
+type DoughnutDataset = {
+  data: number[];
+  backgroundColor: string[];
+  borderWidth: number;
+  cutout: string;
+};
+
 export default function RadialProgress({ label, percent, size = 180 }: Props) {
   const p = Math.max(0, Math.min(100, Math.round(percent)));
-  const data = {
+  const data: ChartData<'doughnut', number[], string> = {
     labels: ['Complete', 'Remaining'],
     datasets: [
       {
@@ -18,7 +25,7 @@ export default function RadialProgress({ label, percent, size = 180 }: Props) {
         backgroundColor: ['#16a34a', '#e5e7eb'],
         borderWidth: 0,
         cutout: '70%'
-      } as any
+      } as unknown as DoughnutDataset
     ]
   };
   return (
