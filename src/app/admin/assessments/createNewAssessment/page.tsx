@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import BackButton from "@/components/ui/BackButton";
 import {
   Select,
   SelectTrigger,
@@ -81,12 +82,31 @@ export default function CreateAssessmentPage() {
   }, []);
 
   /* ---------- Handle Submit ---------- */
-  const handleSubmit = async () => {
-    if (!selectedFramework || !selectedBranch) {
+  const handleSubmit = async (): Promise<void> => {
+    // --------- FRONTEND VALIDATION ---------
+    if (!selectedFramework || !selectedDivision || !selectedBranch) {
       toast({
-        title: "Missing Information",
-        description: "Please select both a framework and branch before continuing.",
-        variant: "destructive", // Red for invalid
+        title: "Missing Required Fields",
+        description: "Please select Framework, Division, and Branch.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!assessmentDate || !dueDate) {
+      toast({
+        title: "Missing Dates",
+        description: "Please select both Assessment Date and Due Date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (new Date(dueDate) < new Date(assessmentDate)) {
+      toast({
+        title: "Invalid Dates",
+        description: "Due date cannot be earlier than the assessment date.",
+        variant: "destructive",
       });
       return;
     }
@@ -94,9 +114,10 @@ export default function CreateAssessmentPage() {
     const payload = {
       frameworkId: Number(selectedFramework),
       branchId: selectedBranch,
-      assessmentScope,
-      assessmentDate,
-      dueDate,
+      divisionId: selectedDivision,
+      assessmentScope: assessmentScope?.trim() || null,
+      assessmentDate: new Date(assessmentDate).toISOString(),
+      dueDate: new Date(dueDate).toISOString(),
     };
 
     setIsSubmitting(true);
@@ -109,45 +130,54 @@ export default function CreateAssessmentPage() {
         credentials: "include",
       });
 
-      const text = await res.text();
-      if (!res.ok) throw new Error(text);
+      if (!res.ok) {
+        // try to extract a backend-friendly message
+        const rawText = await res.text();
+        let message = "Failed to create assessment.";
+
+        try {
+          const parsed = JSON.parse(rawText);
+          if (typeof parsed.message === "string") {
+            message = parsed.message;
+          }
+        } catch {
+          if (rawText) message = rawText;
+        }
+
+        throw new Error(message);
+      }
 
       toast({
-        title: "Assessment Created Successfully",
-        variant: "success", // Green for success
+        title: "Assessment Created",
+        description: "The new assessment was created successfully.",
+        variant: "success",
       });
 
-      // Reset form after success
+      // reset form
       setSelectedFramework("");
       setSelectedDivision(null);
       setSelectedBranch(null);
       setAssessmentScope("");
       setAssessmentDate("");
       setDueDate("");
-        } catch (err: unknown) {
-          const error = err as { message?: string };
-          console.error("Error creating assessment:", error);
+    } catch (err) {
+      console.error("Error creating assessment:", err);
 
-          let msg = "Something went wrong. Please try again later.";
+      let msg = "Something went wrong. Please try again later.";
+      if (err instanceof Error && err.message) {
+        msg = err.message;
+      }
 
-          try {
-            const parsed = JSON.parse(error.message ?? "{}");
-            msg = parsed.message || msg;
-          } catch {
-            if (error.message?.includes("message:"))
-              msg = error.message.split("message:")[1].replace(/[{}]+/g, "").trim();
-          }
-
-          toast({
-            title: "Error Creating Assessment",
-            description: msg,
-            variant: "destructive", // Red for errors
-          });
-        } finally {
-          setIsSubmitting(false);
-        }
-
+      toast({
+        title: "Error Creating Assessment",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
 
   /* ---------- JSX ---------- */
@@ -156,6 +186,7 @@ export default function CreateAssessmentPage() {
       <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
         {/* --- Header --- */}
         <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <BackButton href="/admin/assessments" />
           <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             Create New Assessment
           </CardTitle>

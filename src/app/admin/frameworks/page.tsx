@@ -16,6 +16,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import BackButton from "@/components/ui/BackButton";
 
 const API = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5275").replace(/\/+$/, "");
 console.log("API base =", API);
@@ -332,9 +333,10 @@ export default function FrameworksPage() {
   };
 
   return (
-    <div className="px-3 sm:px-4 md:px-6 py-4 space-y-6 min-w-0">
+    <div className="p-0 space-y-6 min-w-0">
       <div className="flex items-center justify-between min-w-0">
         <div>
+          <BackButton href="/admin/dashboard" />
           <h2 className="text-2xl md:text-3xl font-bold">Frameworks</h2>
           <p className="text-sm md:text-base text-gray-600">
             Manage compliance frameworks. Upload new frameworks as needed in the future.

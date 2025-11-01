@@ -18,20 +18,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Header with sidebar toggle */}
       <Header onToggleSidebar={() => setSidebarOpen((s) => !s)} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* pass state + closer */}
+        {/* Sidebar */}
         <Sidebar
           navigation={adminNavigation}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
 
-        <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            {children}
-          </div>
+        {/* Main content area */}
+        <main className="flex-1 min-w-0 overflow-y-auto px-4 md:px-5 lg:px-6 py-4 bg-gray-50">
+          <div className="min-w-0">{children}</div>
         </main>
       </div>
     </div>

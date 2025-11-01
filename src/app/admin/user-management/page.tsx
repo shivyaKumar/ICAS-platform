@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import BackButton from "@/components/ui/BackButton";
 import {
   Tabs,
   TabsList,
@@ -500,6 +501,7 @@ export default function UserManagementPage() {
         <Card className="border shadow-sm">
           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
+              <BackButton href="/admin/dashboard" />
               <CardTitle className="text-2xl md:text-3xl font-bold">User Management</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Manage divisions, branches, and user access across the organisation.

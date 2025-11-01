@@ -2,7 +2,7 @@ import AssessmentDetailClient from "@/components/assessments/AssessmentDetailCli
 
 export default function StaffAssessmentDetailPage() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-0">
       <AssessmentDetailClient />
     </div>
   );

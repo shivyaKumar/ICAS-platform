@@ -8,6 +8,7 @@ import AssessmentTable, { type UserOption } from "@/components/assessments/Asses
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatAppDate } from "@/lib/date";
+import BackButton from "@/components/ui/BackButton";
 
 import type { Assessment, Evidence, Finding } from "@/types/assessment";
 
@@ -171,7 +172,7 @@ export default function AssessmentDetailClient() {
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>("");
 
-  // 🔹 base API (used by download links)
+  // base API (used by download links)
   const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   const loadAssessment = useCallback(async () => {
@@ -197,7 +198,7 @@ export default function AssessmentDetailClient() {
 
       // Always fetch assessment
       const detailRes = await fetch(detailPath, { credentials: "include", cache: "no-store" });
-      if (!detailRes.ok) throw new Error(await res.text());
+      if (!detailRes.ok) throw new Error(await detailRes.text());
       const detailData = await detailRes.json();
 
       // Only admins should fetch users/branches
@@ -337,6 +338,7 @@ export default function AssessmentDetailClient() {
       <Card className="border border-gray-200 shadow-sm rounded-xl bg-gradient-to-br from-yellow-50 via-white to-gray-50
       ">
         <CardHeader className="pb-2 border-b border-gray-100">
+          <BackButton showLabel={false} />
           <CardTitle className="flex flex-wrap items-center gap-2 text-2xl font-semibold text-gray-800">
             <span>{assessment.framework}</span>
             {assessment.branch && (
@@ -436,7 +438,7 @@ export default function AssessmentDetailClient() {
       </Card>
 
       <Card>
-        {/* 🔽 Button updated: CSV removed, XLSX renamed to "Export Report" */}
+        {/* Button updated: CSV removed, XLSX renamed to "Export Report" */}
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>Assessment Findings</CardTitle>
 

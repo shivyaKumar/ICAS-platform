@@ -1,9 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
+import FijiNewsSlider from "@/components/ui/FijiNewsSlider";
+import FijiCyberNewsSlider from "@/components/ui/FijiCyberNewsSlider";
 
 const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false });
 
@@ -64,8 +66,22 @@ export default function StaffDashboardPage() {
   return (
     <div className="flex flex-col space-y-8 min-h-full overflow-auto px-3 sm:px-4 md:px-6 py-4 bg-gradient-to-b from-gray-100 via-gray-200 to-gray-300">
 
-      {/* 👋 Welcome Banner */}
+      {/* ðŸ‘‹ Welcome Banner */}
       <WelcomeBanner name={userName} />
+
+      {/* News Section */}
+      <section className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm hover:shadow-md transition mb-4">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold text-gray-800">Latest News & Updates</h2>
+          <a href="/dashboard/news" className="text-sm text-indigo-600 hover:underline">
+            View More &rarr;
+          </a>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FijiNewsSlider />
+          <FijiCyberNewsSlider />
+        </div>
+      </section>
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
@@ -101,7 +117,7 @@ export default function StaffDashboardPage() {
         {stats && (stats.branchTotals.completed + stats.branchTotals.pending + stats.branchTotals.notCompleted) > 0 && (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <TaskPie
-              label={`${stats.branchName} · Branch`}
+              label={`${stats.branchName} Â· Branch`}
               completed={stats.branchTotals.completed}
               pending={stats.branchTotals.pending}
               notCompleted={stats.branchTotals.notCompleted}

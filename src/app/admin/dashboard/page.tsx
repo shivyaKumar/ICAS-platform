@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link"; // ✅ added
+import Link from "next/link"; 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FijiNewsSlider from "@/components/ui/FijiNewsSlider";
 import FijiCyberNewsSlider from "@/components/ui/FijiCyberNewsSlider";
-import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner"; // ✅ Added import
+import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner"; // Added import
 
 const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false });
 const RadialProgress = dynamic(() => import("@/components/ui/RadialProgress"), { ssr: false });

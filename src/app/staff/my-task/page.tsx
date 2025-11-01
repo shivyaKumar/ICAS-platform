@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import BackButton from "@/components/ui/BackButton";
 
 type AssessmentItem = {
   id: number;
@@ -136,6 +137,7 @@ export default function StaffMyTasksPage() {
       <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
         {/* --- Header --- */}
         <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <BackButton href="/staff/dashboard" />
           <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             My Assessments
           </CardTitle>

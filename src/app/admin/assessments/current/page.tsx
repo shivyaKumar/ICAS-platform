@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import BackButton from "@/components/ui/BackButton";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -226,6 +227,7 @@ export default function CurrentAssessmentsPage() {
       <Card className="bg-white border border-gray-200 shadow-sm rounded-lg">
         {/* --- Header --- */}
         <CardHeader className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+          <BackButton href="/admin/assessments" />
           <CardTitle className="text-2xl font-bold text-gray-900 tracking-tight">
             Current Assessments
           </CardTitle>
