@@ -13,10 +13,17 @@ import BackButton from "@/components/ui/BackButton";
 import type { Assessment, Evidence, Finding } from "@/types/assessment";
 
 /* ----------------- Utility Helpers ----------------- */
+/**
+ * Normalizes a string for case-insensitive comparisons
+ * (used for matching branches, divisions, and locations).
+ */
 function normalize(value?: string | null): string {
   return value ? value.trim().toLowerCase() : "";
 }
 
+/**
+ * Composes a full name using first + last name or falls back to email.
+ */
 function composeFullName(
   first?: string | null,
   last?: string | null,
@@ -56,9 +63,11 @@ function mapFinding(raw: unknown): Finding {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const id = Number(source.id) || 0;
 
+  // Helper to safely read string fields
   const getString = (key: string): string | undefined =>
     typeof source[key] === "string" ? (source[key] as string) : undefined;
 
+  // Helper for nullable strings (returns null instead of undefined)
   const getNullableString = (key: string): string | null =>
     typeof source[key] === "string" ? (source[key] as string) : null;
 
@@ -112,6 +121,12 @@ function mapFinding(raw: unknown): Finding {
 }
 
 /* ----------------- Fetch Current User ----------------- */
+
+/**
+ * Fetches current logged-in user's profile and role info from `/api/me`.
+ * The function handles both ASP.NET Identity-style `roles[]` and `claims[]`.
+ * Returns minimal user identity fields for access control logic.
+ */
 async function fetchUser(): Promise<{
   id?: string;
   role?: string;
@@ -159,6 +174,7 @@ async function fetchUser(): Promise<{
 
 /* ----------------- Main Component ----------------- */
 export default function AssessmentDetailClient() {
+  // Get assessment ID from the URL route
   const params = useParams<{ id: string }>();
   const numericId = useMemo(() => {
     const raw = Array.isArray(params?.id) ? params.id[0] : params?.id;
@@ -166,6 +182,7 @@ export default function AssessmentDetailClient() {
     return Number.isFinite(parsed) ? parsed : NaN;
   }, [params]);
 
+  // React state variables
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [assignableUsers, setAssignableUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +192,10 @@ export default function AssessmentDetailClient() {
   // base API (used by download links)
   const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
+  /**
+   * Loads assessment details and populates findings + assignable users.
+   * Includes branch/division filtering logic and user role awareness.
+   */
   const loadAssessment = useCallback(async () => {
     console.log("Reloading assessment from server...");
     if (!Number.isFinite(numericId)) {
@@ -187,11 +208,13 @@ export default function AssessmentDetailClient() {
       setLoading(true);
       setError(null);
 
+      // Fetch current user info
       const me = await fetchUser();
       setUserRole(me.role ?? "");   
       const userId = me.id ?? "";
       const role = me.role ?? "";
 
+      // Build dynamic endpoint (includes userId when available)
       const detailPath = userId
         ? `/api/assessments/${numericId}?userId=${encodeURIComponent(userId)}`
         : `/api/assessments/${numericId}`;
@@ -221,16 +244,19 @@ export default function AssessmentDetailClient() {
       }
 
       /* ------------------ Build Assignable User List ------------------ */
+      // Create lookup for branch info
       const branchLookup = new Map<number, any>();
       branches.forEach((branch: any) => branchLookup.set(branch.id, branch));
 
+      // Normalize current assessment’s location info
       const targetBranch = normalize(detailData.branch);
       const targetDivision = normalize(detailData.division);
       const targetLocation = normalize(detailData.location);
 
-      // Define allowed roles exactly matching backend logic
+      // Only users with these roles can be assigned findings
       const ASSIGNABLE_ROLES = new Set(["admin", "standard user"]);
 
+      // Filter assignable users by matching branch/division/location
       const candidates = (Array.isArray(usersData) ? usersData : [])
         .filter((user: any) => {
           if (!user.role) return false;
@@ -279,12 +305,16 @@ export default function AssessmentDetailClient() {
         }
       });
 
+      // Sort assignable users alphabetically for dropdown display
       const sortedAssignable = Array.from(assignableMap.values()).sort((a, b) =>
         (a.fullName || a.email || a.id).localeCompare(
           b.fullName || b.email || b.id
         )
       );
 
+      /* =====================================================
+         Sanitize Assessment Object
+         ===================================================== */
       const sanitized: Assessment = {
         id: numericId,
         framework: detailData.framework ?? "",
@@ -313,6 +343,7 @@ export default function AssessmentDetailClient() {
     }
   }, [numericId]);
 
+  // Fetch assessment on mount or ID change
   useEffect(() => {
     loadAssessment();
   }, [loadAssessment]);
@@ -400,6 +431,7 @@ export default function AssessmentDetailClient() {
               </p>
             </div>
 
+            {/* Only show Due Date if provided */}
             {assessment.dueDate && (
               <div>
                 <p className="text-xs uppercase font-semibold text-gray-500 tracking-wide">
@@ -411,6 +443,7 @@ export default function AssessmentDetailClient() {
               </div>
             )}
 
+            {/* Show closure info only if completed */}
             {assessment.status === "Completed" && (
               <>
                 {assessment.closedAt && (
