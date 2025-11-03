@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, ClipboardList, CheckCircle } from "lucide-react";
-import BreadcrumbNav from '@/components/BreadcrumbNav';
 
 export default function AssessmentsPage() {
   return (

@@ -65,9 +65,9 @@ function extractImageFromHtml(html: string): string | null {
 export async function GET() {
   try {
     const sources = [
-      "https://rss.app/feeds/jNcXP4XANoSKaErH.xml", // Fiji Times
-      "https://rss.app/feeds/npS5MLTJSEvm2ZQU.xml", // FBC News
-      "https://rss.app/feeds/skXdIkJ2E3tTMvjo.xml", // FijiVillage
+      "https://rss.app/feeds/7aGo44hKKMrHC6bF.xml", // Fiji Times
+      "https://rss.app/feeds/Ji9lDgwY9JwAH4BT.xml", // FBC News
+      "https://rss.app/feeds/8pqt2lV64CdFiAI1.xml", // FijiVillage
     ];
 
     // Fetch all RSS feeds in parallel
