@@ -87,19 +87,23 @@ export default function StaffDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-w-0">
         {[ 
           { title: "Assigned Tasks", value: String(stats?.assignedTasks ?? 0), subtitle: "Assigned to you" },
-          { title: "Changes Requested", value: String(stats?.changesRequested ?? 0), subtitle: "Returned by admin" },
+          /*{ title: "Changes Requested", value: String(stats?.changesRequested ?? 0), subtitle: "Returned by admin" },*/
           { title: "Completed", value: String(completedCount), subtitle: "Assessments closed" },
         ].map((m) => (
           <Card
             key={m.title}
-            className="bg-white shadow-md rounded-xl border border-gray-100 hover:scale-105 hover:shadow-2xl transform transition-transform duration-300 ease-in-out"
+            className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition"
           >
-            <CardHeader>
-              <CardTitle className="text-gray-800 text-sm md:text-base font-semibold">{m.title}</CardTitle>
+            <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1">
+              <CardTitle className="text-gray-800 text-sm font-semibold">{m.title}</CardTitle>
+              <div className="rounded-full bg-white p-1 shadow-sm ring-1 ring-gray-100">
+                <span className="block h-2.5 w-2.5 rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className={`text-3xl md:text-4xl font-extrabold ${metricGradient}`}>{m.value}</div>
-              {m.subtitle && <p className="text-xs md:text-sm text-gray-500">{m.subtitle}</p>}
+            <CardContent className="pt-1">
+              <div className="text-4xl md:text-[2.5rem] font-extrabold leading-none text-gray-900">{m.value}</div>
+              {m.subtitle && <p className="mt-2 text-xs md:text-sm text-gray-500">{m.subtitle}</p>}
             </CardContent>
           </Card>
         ))}
