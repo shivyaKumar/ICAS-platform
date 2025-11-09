@@ -60,7 +60,7 @@ export function DivisionHierarchy({
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-slate-500" />
 
-                          {/* ✅ Clean separator fix */}
+                          {/* Clean separator for branch name and location */}
                           <span>
                             {branch.name}
                             {branch.location ? ` - ${branch.location}` : ""}

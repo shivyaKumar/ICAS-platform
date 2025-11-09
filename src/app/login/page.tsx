@@ -85,7 +85,6 @@ export default function LoginPage() {
         <div className="absolute w-72 h-72 bg-yellow-300 rounded-full top-20 left-10 animate-pulse opacity-30"></div>
         <div className="absolute w-96 h-96 bg-black rounded-full bottom-10 right-10 animate-bounce-slow opacity-20"></div>
 
-        {/* Carpenters Logo + Welcome Text */}
         <div className="z-10 text-center">
           <Image
             src="/carpenters.png"

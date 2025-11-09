@@ -101,7 +101,7 @@ export default function CreateAssessmentPage() {
       });
       return;
     }
-
+    // Date validation
     if (new Date(dueDate) < new Date(assessmentDate)) {
       toast({
         title: "Invalid Dates",
@@ -110,7 +110,7 @@ export default function CreateAssessmentPage() {
       });
       return;
     }
-
+    // --------- SUBMIT TO BACKEND ---------
     const payload = {
       frameworkId: Number(selectedFramework),
       branchId: selectedBranch,
@@ -131,7 +131,6 @@ export default function CreateAssessmentPage() {
       });
 
       if (!res.ok) {
-        // try to extract a backend-friendly message
         const rawText = await res.text();
         let message = "Failed to create assessment.";
 
@@ -297,7 +296,7 @@ export default function CreateAssessmentPage() {
             </div>
           </div>
 
-          {/* Submit Button (Full Width) */}
+          {/* Submit Button */}
           <div className="pt-6">
             <Button
               variant="secondary"

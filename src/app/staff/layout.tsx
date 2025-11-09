@@ -8,7 +8,7 @@ import { LayoutDashboard, Shield, CheckCircle2 } from "lucide-react";
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Staff-specific nav (kept minimal per your scope)
+  // Staff-specific nav items
   const staffNavigation: NavigationItem[] = [
     { name: "Dashboard", href: "/staff/dashboard", icon: LayoutDashboard },
     { name: "My Task", href: "/staff/my-task", icon: Shield },

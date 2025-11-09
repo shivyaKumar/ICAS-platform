@@ -35,6 +35,7 @@ export default function EvidenceUploader({
     formData.append("file", file);
     formData.append("description", description);
 
+    // sends formdata
     try {
       const res = await fetch(`/api/evidence/upload/${findingId}`, {
         method: "POST",

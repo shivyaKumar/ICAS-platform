@@ -23,7 +23,6 @@ export async function POST(req: Request) {
     const token = (await cookies()).get("icas_auth")?.value;
     const raw = await req.json();
 
-    // Ensure divisionId is always numeric
     const divisionId = raw.divisionId ? Number(raw.divisionId) : NaN;
 
     if (!raw.name || isNaN(divisionId)) {

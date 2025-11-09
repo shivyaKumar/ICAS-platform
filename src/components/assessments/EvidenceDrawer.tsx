@@ -39,7 +39,7 @@ export default function EvidenceDrawer({
   const fetchEvidences = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/evidence/${findingId}`);
+      const res = await fetch(`/api/evidence/${findingId}`); //Fetches all evidence for the selected finding
       if (res.ok) {
         const data: Evidence[] = await res.json();
         setEvidences(data);

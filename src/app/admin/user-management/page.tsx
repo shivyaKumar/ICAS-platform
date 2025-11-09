@@ -71,10 +71,21 @@ export default function UserManagementPage() {
     onConfirm: () => {},
   });
 
+  const LIMITS = {
+    divisionName: 50,
+    divisionDescription: 150,
+    branchName: 50,
+    branchLocation: 50,
+    firstName: 50,
+    lastName: 50,
+  };
+
+
   /* ---------- Lookup Maps ---------- */
   const branchLookup = useMemo(() => new Map(branches.map(b => [b.id, b])), [branches]);
   const divisionLookup = useMemo(() => new Map(divisions.map(d => [d.id, d])), [divisions]);
 
+  // Groups all branches under their divisions
   const branchesByDivision = useMemo(() => {
     const map = new Map<number, Branch[]>();
     branches.forEach(b => {
@@ -85,12 +96,14 @@ export default function UserManagementPage() {
     return map;
   }, [branches]);
 
+  // Counts how many branches per division
   const branchCountByDivision = useMemo(() => {
     const map = new Map<number, number>();
     branches.forEach(b => map.set(b.divisionId, (map.get(b.divisionId) ?? 0) + 1));
     return map;
   }, [branches]);
 
+  // Counts users per branch
   const userCountByBranch = useMemo(() => {
     const map = new Map<number, number>();
     users.forEach(u => map.set(u.branchId, (map.get(u.branchId) ?? 0) + 1));
@@ -151,6 +164,10 @@ export default function UserManagementPage() {
     reloadAll();
   }, [reloadAll]);
 
+  // Role-based permissions
+  // Super Admin & IT Admin → can manage divisions, branches, and users
+  // Admin → now uses staff dashboard, so no access to user management
+  // Staff → read-only (no management privileges)
   /* ---------- Permissions ---------- */
   const canManageDivisions = currentRole === "Super Admin" || currentRole === "IT Admin";
   const canManageUsers = currentRole !== "Staff";
@@ -438,7 +455,6 @@ export default function UserManagementPage() {
       setShowAddUser(true);
     };
 
-    /* ---------- Stats & UI ---------- */
     const stats = [
       { icon: Layers, label: "Divisions", value: divisions.length, desc: "Active organisational divisions" },
       { icon: Building2, label: "Branches", value: branches.length, desc: "Branch locations under divisions" },
@@ -644,15 +660,36 @@ export default function UserManagementPage() {
         >
           <FormField id="division-name" label="Division Name">
             <Input
+              maxLength={LIMITS.divisionName}
               value={newDivision.name}
               onChange={e => setNewDivision({ ...newDivision, name: e.target.value })}
+              className={
+                newDivision.name.length >= LIMITS.divisionName ? "border-red-500" : ""
+              }
             />
+            {newDivision.name.length >= LIMITS.divisionName && (
+              <p className="text-sm text-red-500">
+                Maximum {LIMITS.divisionName} characters allowed.
+              </p>
+            )}
           </FormField>
+
           <FormField id="division-description" label="Description">
             <Input
+              maxLength={LIMITS.divisionDescription}
               value={newDivision.description}
               onChange={e => setNewDivision({ ...newDivision, description: e.target.value })}
+              className={
+                newDivision.description.length >= LIMITS.divisionDescription
+                  ? "border-red-500"
+                  : ""
+              }
             />
+            {newDivision.description.length >= LIMITS.divisionDescription && (
+              <p className="text-sm text-red-500">
+                Maximum {LIMITS.divisionDescription} characters allowed.
+              </p>
+            )}
           </FormField>
         </SimpleModal>
 
@@ -663,13 +700,16 @@ export default function UserManagementPage() {
             if (!open) closeAllDialogs();
             else setShowAddBranch(true);
           }}
-
           title={editingBranchId ? "Edit Branch" : "Add Branch"}
           description="Branches represent offices or operating units."
           size="lg"
           footer={
             <Button
               onClick={handleSaveBranch}
+              disabled={
+                newBranch.name.length > LIMITS.branchName ||
+                newBranch.location.length > LIMITS.branchLocation
+              }
               variant={editingBranchId ? "secondary" : undefined}
               size={editingBranchId ? "sm" : "default"}
             >
@@ -679,22 +719,44 @@ export default function UserManagementPage() {
         >
           <FormField id="branch-name" label="Branch Name">
             <Input
+              maxLength={LIMITS.branchName}
               value={newBranch.name}
               onChange={e => setNewBranch({ ...newBranch, name: e.target.value })}
+              className={
+                newBranch.name.length >= LIMITS.branchName ? "border-red-500" : ""
+              }
             />
+            {newBranch.name.length >= LIMITS.branchName && (
+              <p className="text-sm text-red-500">
+                Maximum {LIMITS.branchName} characters allowed.
+              </p>
+            )}
           </FormField>
+
           <FormField id="branch-location" label="Location">
             <Input
+              maxLength={LIMITS.branchLocation}
               value={newBranch.location}
               onChange={e => setNewBranch({ ...newBranch, location: e.target.value })}
+              className={
+                newBranch.location.length >= LIMITS.branchLocation ? "border-red-500" : ""
+              }
             />
+            {newBranch.location.length >= LIMITS.branchLocation && (
+              <p className="text-sm text-red-500">
+                Maximum {LIMITS.branchLocation} characters allowed.
+              </p>
+            )}
           </FormField>
+
           <FormField id="branch-division" label="Division">
             <Select
               value={newBranch.divisionId ? newBranch.divisionId.toString() : ""}
               onValueChange={v => setNewBranch({ ...newBranch, divisionId: Number(v) })}
             >
-              <SelectTrigger><SelectValue placeholder="Select division" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select division" />
+              </SelectTrigger>
               <SelectContent>
                 {divisions.map(d => (
                   <SelectItem key={d.id} value={d.id.toString()}>
@@ -720,6 +782,10 @@ export default function UserManagementPage() {
           footer={
             <Button
               onClick={handleSaveUser}
+              disabled={
+                newUser.firstName.length > LIMITS.firstName ||
+                newUser.lastName.length > LIMITS.lastName
+              }
               variant={editingUserId ? "secondary" : undefined}
               size={editingUserId ? "sm" : "default"}
             >
@@ -730,15 +796,34 @@ export default function UserManagementPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <FormField id="user-first-name" label="First Name">
               <Input
+                maxLength={LIMITS.firstName}
                 value={newUser.firstName}
                 onChange={e => setNewUser({ ...newUser, firstName: e.target.value })}
+                className={
+                  newUser.firstName.length >= LIMITS.firstName ? "border-red-500" : ""
+                }
               />
+              {newUser.firstName.length >= LIMITS.firstName && (
+                <p className="text-sm text-red-500">
+                  Maximum {LIMITS.firstName} characters allowed.
+                </p>
+              )}
             </FormField>
+
             <FormField id="user-last-name" label="Last Name">
               <Input
+                maxLength={LIMITS.lastName}
                 value={newUser.lastName}
                 onChange={e => setNewUser({ ...newUser, lastName: e.target.value })}
+                className={
+                  newUser.lastName.length >= LIMITS.lastName ? "border-red-500" : ""
+                }
               />
+              {newUser.lastName.length >= LIMITS.lastName && (
+                <p className="text-sm text-red-500">
+                  Maximum {LIMITS.lastName} characters allowed.
+                </p>
+              )}
             </FormField>
 
             <div className="md:col-span-2">

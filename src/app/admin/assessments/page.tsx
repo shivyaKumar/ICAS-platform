@@ -16,7 +16,6 @@ export default function AssessmentsPage() {
         </p>
       </div>
 
-      {/* Cards Grid: always at least 2 columns; 3 on md+ */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 min-w-0">
         {/* Create New */}
         <Link href="/admin/assessments/createNewAssessment" className="min-w-0">

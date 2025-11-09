@@ -54,7 +54,6 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
     });
 
     if (r.status === 204) {
-      // Handle no-content response properly
       return new Response(null, { status: 204 });
     }
 

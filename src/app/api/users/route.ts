@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       lastName: raw.lastName,
       email: raw.email,
       role: raw.role || "Staff",
-      branchId: Number(raw.branchId), // required by BE
+      branchId: Number(raw.branchId), 
     };
 
     const r = await fetch(`${BASE}/api/users`, {

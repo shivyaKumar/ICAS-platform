@@ -9,7 +9,6 @@ export async function GET(
   context: { params: Promise<{ findingId: string }> }
 ) {
   try {
-    // ✅ await params before using it
     const { findingId } = await context.params;
 
     const token = (await cookies()).get("icas_auth")?.value ?? "";

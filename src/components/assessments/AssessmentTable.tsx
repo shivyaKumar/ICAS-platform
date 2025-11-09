@@ -38,7 +38,7 @@ export default function AssessmentTable({
   isCompleted = false,
 }: AssessmentTableProps) {
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
-  const [localFindings, setLocalFindings] = useState<Finding[]>(findings);
+  const [localFindings, setLocalFindings] = useState<Finding[]>(findings); // Stores local copy of all the findings
   const descriptionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const normalizeRole = (value?: string) =>
@@ -76,7 +76,6 @@ export default function AssessmentTable({
         })
       );
 
-      // Choose correct backend endpoint
       const endpoint =
         field === "review" && value !== ""
           ? `/api/assessments/review-finding/${id}`

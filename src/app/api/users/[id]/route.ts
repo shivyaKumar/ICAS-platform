@@ -6,7 +6,7 @@ const BASE = "http://127.0.0.1:5275";
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params; // await params
+    const { id } = await context.params; 
 
     const r = await fetch(`${BASE}/api/users/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -23,8 +23,8 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 export async function PUT(req: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params; //await params
-    const body = await req.json(); // parse JSON
+    const { id } = await context.params; 
+    const body = await req.json(); 
 
     const r = await fetch(`${BASE}/api/users/${id}`, {
       method: "PUT",
@@ -32,7 +32,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(body), //serialize JSON
+      body: JSON.stringify(body), 
     });
 
     return new Response(await r.text(), { status: r.status });
@@ -46,7 +46,7 @@ export async function PUT(req: Request, context: { params: Promise<{ id: string 
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const token = (await cookies()).get("icas_auth")?.value;
-    const { id } = await context.params; // await params
+    const { id } = await context.params; 
 
     const r = await fetch(`${BASE}/api/users/${id}`, {
       method: "DELETE",

@@ -6,10 +6,10 @@ const BASE = process.env.API_BASE_URL || "http://127.0.0.1:5275";
 /* ---------- GET: Fetch single assessment ---------- */
 export async function GET(
   _: Request,
-  context: { params: Promise<{ id: string }> } // ✅ params is a Promise
+  context: { params: Promise<{ id: string }> } 
 ) {
   try {
-    const { id } = await context.params; // ✅ await it
+    const { id } = await context.params; 
     const token = (await cookies()).get("icas_auth")?.value;
     const endpoint = `${BASE}/api/assessments/${id}`;
 
@@ -44,10 +44,10 @@ export async function GET(
 /* ---------- PUT: Update assessment ---------- */
 export async function PUT(
   req: Request,
-  context: { params: Promise<{ id: string }> } // ✅ same here
+  context: { params: Promise<{ id: string }> } 
 ) {
   try {
-    const { id } = await context.params; // ✅ await again
+    const { id } = await context.params; 
     const token = (await cookies()).get("icas_auth")?.value;
     const body = await req.json();
     const endpoint = `${BASE}/api/assessments/${id}`;

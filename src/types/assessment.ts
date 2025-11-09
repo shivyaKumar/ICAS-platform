@@ -42,8 +42,8 @@ export interface Finding {
   availableUsers?: { id: number; userName: string }[];
 
   /* ---------- Additional optional fields from backend ---------- */
-  evidenceFile?: string;          // When backend returns file name only
-  reviewerComment?: string;       // For IT admin / superadmin review feedback
+  evidenceFile?: string;         
+  reviewerComment?: string;       
 }
 
 /* ---------- Assessment (Parent Record) ---------- */
@@ -63,6 +63,6 @@ export interface Assessment {
   closedAt?: string;
   progressRate?: number;
   status?: string;
-  isClosed?: boolean;                 // Optional because progress determines completion
+  isClosed?: boolean;                 
   findings: Finding[];
 }

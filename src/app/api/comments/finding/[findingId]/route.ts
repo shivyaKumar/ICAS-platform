@@ -9,7 +9,7 @@ export async function GET(
   context: { params: Promise<{ findingId: string }> }
 ) {
   try {
-    const { findingId } = await context.params; // ✅ must await
+    const { findingId } = await context.params; 
     const token = (await cookies()).get("icas_auth")?.value ?? "";
     const endpoint = `${BASE}/api/comments/finding/${findingId}`;
 
@@ -46,7 +46,7 @@ export async function POST(
   context: { params: Promise<{ findingId: string }> }
 ) {
   try {
-    const { findingId } = await context.params; // ✅ must await
+    const { findingId } = await context.params; 
     const token = (await cookies()).get("icas_auth")?.value ?? "";
     const body = await req.json();
     const endpoint = `${BASE}/api/comments/finding/${findingId}`;

@@ -16,7 +16,7 @@ import { Check } from "lucide-react";
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();
   const rawToken = searchParams.get("token");
-  const token = rawToken ? decodeURIComponent(rawToken) : null; // ✅ decode
+  const token = rawToken ? decodeURIComponent(rawToken) : null; 
   const email = searchParams.get("email");
   const router = useRouter();
 
@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Password validation rules (mirror backend rules from Program.cs)
+  // Password validation rules 
   const validatePassword = (pw: string) => {
     return [
       { test: /.{12,}/, message: "At least 12 characters" },
@@ -61,7 +61,6 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/reset-password", {
-        //Call your Next.js API route, not backend directly
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, token, newPassword: password }),
@@ -71,8 +70,16 @@ export default function ResetPasswordPage() {
         setMessage("Password reset successful! Redirecting...");
         setTimeout(() => router.push("/login"), 2000);
       } else {
-        const error = await res.text();
-        setMessage("Failed: " + error);
+        // Try to parse JSON, otherwise fallback to plain text
+        let errorMessage = "Password reset failed.";
+        try {
+          const data = await res.json();
+          errorMessage = data.message || data || errorMessage;
+        } catch {
+          const text = await res.text();
+          errorMessage = text || errorMessage;
+        }
+        setMessage(errorMessage);
       }
     } catch (err) {
       setMessage("Error: " + err);

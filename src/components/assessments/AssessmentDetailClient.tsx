@@ -121,12 +121,6 @@ function mapFinding(raw: unknown): Finding {
 }
 
 /* ----------------- Fetch Current User ----------------- */
-
-/**
- * Fetches current logged-in user's profile and role info from `/api/me`.
- * The function handles both ASP.NET Identity-style `roles[]` and `claims[]`.
- * Returns minimal user identity fields for access control logic.
- */
 async function fetchUser(): Promise<{
   id?: string;
   role?: string;
@@ -311,10 +305,7 @@ export default function AssessmentDetailClient() {
           b.fullName || b.email || b.id
         )
       );
-
-      /* =====================================================
-         Sanitize Assessment Object
-         ===================================================== */
+      /* ------------------ Sanitize Assessment Data ------------------ */
       const sanitized: Assessment = {
         id: numericId,
         framework: detailData.framework ?? "",
@@ -365,7 +356,7 @@ export default function AssessmentDetailClient() {
   /* ------------------ Render ------------------ */
   return (
     <div className="space-y-6">
-      {/* ---------- Modern Two-Column Assessment Summary Card ---------- */}
+      {/* ---------- Two-Column Assessment Summary Card ---------- */}
       <Card className="border border-gray-200 shadow-sm rounded-xl bg-gradient-to-br from-yellow-50 via-white to-gray-50
       ">
         <CardHeader className="pb-2 border-b border-gray-100">
