@@ -12,9 +12,17 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false });
 const RadialProgress = dynamic(() => import("@/components/ui/RadialProgress"), { ssr: false });
 
+// NEW: Compliance components (client-only)
+const FrameworkChart = dynamic(() => import("@/components/compliance/FrameworkChart"), { ssr: false });
+const DivisionChart = dynamic(() => import("@/components/compliance/DivisionChart"), { ssr: false });
+const BranchStackedChart = dynamic(() => import("@/components/compliance/BranchStackedChart"), { ssr: false });
+const TrendChart = dynamic(() => import("@/components/compliance/TrendChart"), { ssr: false });
+// Removed unused SummaryCards & DashboardHeader (can reintroduce later if needed)
+
 /* ---------------- TYPES ---------------- */
 type Totals = { completed: number; pending: number; notCompleted: number };
 
+// Hierarchical progress payload shape used by the division/branch progress section
 type DivisionHierarchyResponse = {
   overallActiveAssessments: number;
   divisions: Array<{
@@ -29,21 +37,12 @@ type DivisionHierarchyResponse = {
       totals: Totals;
       completionPercent: number;
       activeAssessments: number;
-      frameworks: Array<{ name: string; totals: Totals; completionPercent: number }>;
+      frameworks: Array<{ name: string; totals: Totals; compliancePercent: number }>;
     }>;
   }>;
 };
 
-type ComplianceItem = {
-  id?: string | number;
-  name: string;
-  compliancePercent: number;
-  yes: number;
-  partially: number;
-  no: number;
-};
-
-type BranchRow = { id: string; name: string; pct?: number };
+// Removed unused legacy types (ComplianceItem, BranchRow)
 
 /* ---------------- COMPONENT ---------------- */
 export default function AdminDashboardPage() {
@@ -52,19 +51,23 @@ export default function AdminDashboardPage() {
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
+  // Removed showComplianceMenu state; charts are always displayed when a framework is selected
 
   // --- Compliance / Framework hook ---
   const {
     overallCompliancePercent,
-    //nonCompliantControls,
     loading: compLoading,
     error: compError,
     byDivision,
     byFramework,
+    byBranch,
+    trend,
     framework,
     setFramework,
     frameworkOptions,
-    year,
+    setSelectedDivisionId,
+    // year, setYear, selectedDivisionId, activeAssessments,
+    // completedAssessments, nonCompliantControls removed from destructure (unused in this layout)
   } = useDashboardData(false);
 
   useEffect(() => {
@@ -131,66 +134,8 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  /* ---- Compliance table helpers ---- */
-  const [showComplianceMenu, setShowComplianceMenu] = useState(false);
-  const [expandedDivisions, setExpandedDivisions] = useState<Record<string, boolean>>({});
-  const [branchRowsByDivision, setBranchRowsByDivision] = useState<Record<string, BranchRow[]>>({});
-  const [loadingDivisions, setLoadingDivisions] = useState<Record<string, boolean>>({});
-  const [loadErrorDivisions, setLoadErrorDivisions] = useState<Record<string, string | undefined>>({});
-
-  useEffect(() => {
-    setExpandedDivisions({});
-    setBranchRowsByDivision({});
-    setLoadingDivisions({});
-    setLoadErrorDivisions({});
-  }, [framework, year]);
-
-  const formatPct = (v?: number) => (Number.isFinite(v) ? `${Math.round(v!)}%` : "—");
-
-  async function fetchBranchCompliance(divisionId: string, fw?: string, y?: string) {
-    const qs = new URLSearchParams({ divisionId });
-    if (fw) qs.set("framework", fw);
-    if (y) qs.set("year", y);
-    const res = await fetch(`/api/assessments/progress/compliance/by-branch?${qs.toString()}`, {
-      cache: "no-store",
-      credentials: "include",
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data: ComplianceItem[] = await res.json();
-    return Array.isArray(data) ? data : [];
-  }
-
-  async function ensureDivisionBranchRows(divId: string) {
-    if (branchRowsByDivision[divId]) return;
-    if (!framework) {
-      setLoadErrorDivisions((s) => ({ ...s, [divId]: "Select a framework first." }));
-      return;
-    }
-    setLoadingDivisions((s) => ({ ...s, [divId]: true }));
-    setLoadErrorDivisions((s) => ({ ...s, [divId]: undefined }));
-    try {
-      const arr = await fetchBranchCompliance(divId, framework, year);
-      const rows: BranchRow[] = arr
-        .map((it) => ({ id: String(it.id ?? it.name), name: it.name, pct: it.compliancePercent }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      setBranchRowsByDivision((s) => ({ ...s, [divId]: rows }));
-    } catch (e) {
-      setLoadErrorDivisions((s) => ({
-        ...s,
-        [divId]: e instanceof Error ? e.message : "Failed to load branch compliance",
-      }));
-    } finally {
-      setLoadingDivisions((s) => ({ ...s, [divId]: false }));
-    }
-  }
-
-  function toggleDivisionRow(divId: string) {
-    setExpandedDivisions((s) => {
-      const next = !s[divId];
-      if (next) void ensureDivisionBranchRows(divId);
-      return { ...s, [divId]: next };
-    });
-  }
+  /* ---- Compliance table helpers (legacy preview) ---- */
+  // (Removed legacy breakdown helpers that were unused or conflicting with new layout)
 
   /* ---- Metrics & Pie logic ---- */
   const metricThemes: Record<
@@ -294,7 +239,7 @@ export default function AdminDashboardPage() {
               : m.title === "Completed"
               ? "/admin/assessments/completed"
               : undefined;
-          const card = (
+        const card = (
             <Card
               key={m.title}
               className={`relative overflow-hidden rounded-3xl border border-white/70 shadow-xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer ${theme.cardBg}`}
@@ -363,125 +308,73 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* ---- COMPLIANCE PREVIEW ---- */}
-      <section className="pt-2">
-        <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3">Compliance Preview</h2>
-        {compError && <div className="text-sm text-red-600">{String(compError)}</div>}
-        <div className="w-full">
-          <Card className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-emerald-50 shadow-xl">
-            <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500" />
-            <div className="pointer-events-none absolute -right-12 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-emerald-400/15 via-sky-400/20 to-indigo-400/25 blur-2xl" />
-            <div className="pointer-events-none absolute -bottom-12 -left-10 h-28 w-28 rounded-full bg-gradient-to-br from-indigo-400/15 via-emerald-400/15 to-sky-400/20 blur-2xl" />
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-gray-800">Overall Compliance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-3xl font-extrabold text-gray-900">
-                  {Number.isFinite(overallCompliancePercent)
-                    ? `${Math.round(overallCompliancePercent)}%`
-                    : "—"}
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-600">Framework:</label>
-                  <select
-                    className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
-                    value={framework ?? ""}
-                    onChange={(e) => setFramework(e.target.value || undefined)}
-                  >
-                    {frameworkOptions.length === 0 && <option value="">(none)</option>}
-                    {frameworkOptions.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="text-xs px-2 py-1 rounded border border-gray-200 bg-white/80 transition hover:bg-indigo-50"
-                    onClick={() => setShowComplianceMenu((v) => !v)}
-                  >
-                    {showComplianceMenu ? "Hide breakdown" : "Show breakdown"}
-                  </button>
-                </div>
-              </div>
+          {/* ---- COMPLIANCE PREVIEW (legacy table; optional to keep) ---- */}
+          <section className="pt-2">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3">Compliance Preview</h2>
+              {compError && <div className="text-sm text-red-600">{String(compError)}</div>}
+              <div className="w-full">
+                  <Card className="relative w-full overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-emerald-50 shadow-xl">
+                      <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-500" />
+                      <div className="pointer-events-none absolute -right-12 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-emerald-400/15 via-sky-400/20 to-indigo-400/25 blur-2xl" />
+                      <div className="pointer-events-none absolute -bottom-12 -left-10 h-28 w-28 rounded-full bg-gradient-to-br from-indigo-400/15 via-emerald-400/15 to-sky-400/20 blur-2xl" />
+                      <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-semibold text-gray-800">Overall Compliance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          <div className="flex items-center justify-between gap-2">
+                              <div className="text-3xl font-extrabold text-gray-900">
+                                  {Number.isFinite(overallCompliancePercent)
+                                      ? `${Math.round(overallCompliancePercent)}%`
+                                      : "—"}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                  <label className="text-xs text-gray-600">Framework:</label>
+                                  <select
+                                      className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
+                                      value={framework ?? ""}
+                                      onChange={(e) => setFramework(e.target.value || undefined)}
+                                  >
+                                      {frameworkOptions.length === 0 && <option value="">(none)</option>}
+                                      {frameworkOptions.map((n) => (
+                                          <option key={n} value={n}>
+                                              {n}
+                                          </option>
+                                      ))}
+                                  </select>
+                              </div>
+                          </div>
 
               {compLoading && <div className="text-xs text-gray-500 mt-1">Loading…</div>}
 
-              {showComplianceMenu && (
-                <div className="mt-3 border-t border-gray-100 pt-3 space-y-3">
-                  {!framework && (
-                    <div className="text-xs text-gray-500">
-                      Select a framework to see division and branch compliance.
-                    </div>
-                  )}
-                  {framework && (!byDivision || byDivision.length === 0) && (
-                    <div className="text-xs text-gray-500">No divisions available.</div>
-                  )}
-                  {framework && byDivision && byDivision.length > 0 && (
-                    <ul className="divide-y divide-gray-100">
-                      {byDivision.map((d) => {
-                        const id = String(d.id ?? d.name);
-                        const isOpen = !!expandedDivisions[id];
-                        const isLoading = !!loadingDivisions[id];
-                        const err = loadErrorDivisions[id];
-                        const rows = branchRowsByDivision[id] ?? [];
-                        return (
-                          <li
-                            key={id}
-                            className="rounded-xl border border-white/60 bg-gradient-to-br from-white via-slate-50 to-emerald-50 p-3 shadow-sm"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <button className="text-left flex-1" onClick={() => toggleDivisionRow(id)}>
-                                <div className="font-medium text-gray-800">{d.name}</div>
-                                <div className="text-xs text-gray-500">Weighted: {formatPct(d.compliancePercent)}</div>
-                              </button>
-                              <button
-                                className="text-xs px-3 py-1 rounded-full border border-white/60 bg-white/80 transition hover:bg-indigo-50"
-                                onClick={() => toggleDivisionRow(id)}
-                              >
-                                {isOpen ? "Collapse" : "Expand"}
-                              </button>
-                            </div>
-                            {isOpen && (
-                              <div className="mt-3 space-y-2 rounded-xl border border-white/60 bg-gradient-to-br from-white via-slate-50 to-emerald-50 p-3 shadow-inner">
-                                {isLoading && <div className="text-xs text-gray-500">Loading branches…</div>}
-                                {err && <div className="text-xs text-red-600">{err}</div>}
-                                {!isLoading && !err && rows.length === 0 && (
-                                  <div className="text-xs text-gray-500">No branches found.</div>
-                                )}
-                                {!isLoading && !err && rows.length > 0 && (
-                                  <div className="overflow-hidden rounded-lg border border-gray-100">
-                                    <table className="min-w-full text-xs">
-                                      <thead className="bg-gray-50 text-gray-600">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left font-semibold">Branch</th>
-                                          <th className="px-3 py-2 text-right font-semibold">{framework}</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100">
-                                        {rows.map((r) => (
-                                          <tr key={r.id} className="bg-white">
-                                            <td className="px-3 py-2">{r.name}</td>
-                                            <td className="px-3 py-2 text-right">{formatPct(r.pct)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+              {/* Embedded analytics charts */}
+              {framework && (
+              <div className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <FrameworkChart
+                  data={byFramework}
+                  onSelect={(name) => {
+                  setFramework(name);
+                  setSelectedDivisionId(undefined);
+                  }}
+                />
+                <DivisionChart
+                  data={byDivision}
+                  onSelect={(id) => setSelectedDivisionId(id)}
+                />
                 </div>
+                <div className="mt-2">
+                <BranchStackedChart data={byBranch} />
+                </div>
+                <div className="mt-2">
+                <TrendChart data={trend.map(t => ({ month: t.month, compliancePercent: t.compliancePercent }))} />
+                </div>
+              </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+                      </CardContent>
+                  </Card>
+              </div>
+          </section>
+
     </div>
   );
 }

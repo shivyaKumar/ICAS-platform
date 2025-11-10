@@ -7,11 +7,22 @@ import { useMemo } from "react";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-type Item = { name: string; compliancePercent: number; yes: number; partially: number; no: number };
+type Item = {
+  name: string;
+  compliancePercent: number | null;
+  yes: number;
+  partially: number;
+  no: number;
+  weightedNumerator?: number;
+  weightedDenominator?: number;
+  totalControls?: number;
+  assessedControls?: number;
+  errorMessage?: string;
+};
 
 export default function FrameworkChart({ data, onSelect }: { data: Item[]; onSelect?: (name: string) => void }) {
   const labels = data.map(d => d.name);
-  const values = data.map(d => Math.round(d.compliancePercent));
+  const values = data.map(d => Math.round(d.compliancePercent ?? 0));
   const chart = useMemo(() => ({
     labels,
     datasets: [{
@@ -40,7 +51,23 @@ export default function FrameworkChart({ data, onSelect }: { data: Item[]; onSel
                   const idx = (elements[0] as { index: number }).index;
                   onSelect(labels[idx]);
                 },
-                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } }
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 10 } },
+                  tooltip: {
+                    callbacks: {
+                      label: (ctx) => {
+                        const i = ctx.dataIndex ?? 0;
+                        const item = data[i];
+                        const pct = values[i] ?? 0;
+                        const num = item.weightedNumerator ?? undefined;
+                        const den = item.weightedDenominator ?? undefined;
+                        return den && num !== undefined
+                          ? `${item.name}: ${pct}% (weighted ${num}/${den})`
+                          : `${item.name}: ${pct}%`;
+                      }
+                    }
+                  }
+                }
               }}
             />
           </div>

@@ -27,7 +27,7 @@ export default function BranchStackedChart({ data }: { data: Item[] }) {
         <CardHeader><CardTitle>Branch Compliance (Weighted)</CardTitle></CardHeader>
         <CardContent style={{ height: chartHeight }}>
           {series.length === 0 ? (
-            <div className="text-sm text-gray-500">No data</div>
+            <div className="text-sm text-blue-500">No data</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={series} layout="vertical" barCategoryGap={12} barGap={6} margin={{ top: 10, right: 16, bottom: 10, left: 0 }}>
@@ -67,7 +67,7 @@ export default function BranchStackedChart({ data }: { data: Item[] }) {
       <CardHeader><CardTitle>Branch Compliance Breakdown</CardTitle></CardHeader>
       <CardContent style={{ height: chartHeight }}>
         {series.length === 0 ? (
-          <div className="text-sm text-gray-500">No data</div>
+          <div className="text-sm text-blue-500">No data</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={series} layout="vertical" barCategoryGap={12} barGap={6} margin={{ top: 10, right: 16, bottom: 10, left: 0 }}>

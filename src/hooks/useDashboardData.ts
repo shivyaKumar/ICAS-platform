@@ -2,7 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-export type ComplianceItem = { id?: string; name: string; compliancePercent: number; yes: number; partially: number; no: number };
+export type ComplianceItem = {
+  id?: string;
+  name: string;
+  compliancePercent: number | null; // null signals data issue
+  yes: number;
+  partially: number;
+  no: number;
+  // Extended meta (may be supplied by backend; fallbacks computed locally)
+  weightedNumerator?: number; // Sum of weighted compliant segments
+  weightedDenominator?: number; // Total weighted controls considered
+  totalControls?: number; // Total distinct controls in framework scope
+  assessedControls?: number; // Distinct controls assessed
+  errorMessage?: string; // Backend-provided issue description
+};
 export type TrendItem = { year: number; month: number; compliancePercent: number; yes: number; partially: number; no: number };
 
 export function useDashboardData(staffMode?: boolean) {
@@ -32,7 +45,28 @@ export function useDashboardData(staffMode?: boolean) {
         const fwRes = await fetch(`/api/assessments/progress/compliance/by-framework${year ? `?year=${year}` : ''}`, { cache: 'no-store', credentials: 'include' });
         if (!fwRes.ok) { if (!cancelled) setByFramework([]); return; }
         const fw = await fwRes.json();
-        if (!cancelled) setByFramework(Array.isArray(fw) ? fw : []);
+        if (!cancelled) {
+          const arr = Array.isArray(fw) ? fw : [];
+          // Normalize extended shape & ensure numeric fallbacks
+          setByFramework(arr.map(x => {
+            const yes = x.yes ?? x.Yes ?? 0;
+            const partially = x.partially ?? x.Partially ?? 0;
+            const no = x.no ?? x.No ?? 0;
+            const denom = x.weightedDenominator ?? x.WeightedDenominator ?? (yes + partially + no);
+            const numer = x.weightedNumerator ?? x.WeightedNumerator ?? Math.round((x.compliancePercent ?? x.CompliancePercent ?? 0) * denom / 100);
+            return {
+              id: x.id || x.Id,
+              name: x.name || x.Name || 'Unknown',
+              compliancePercent: (x.compliancePercent ?? x.CompliancePercent ?? 0),
+              yes, partially, no,
+              weightedNumerator: numer,
+              weightedDenominator: denom,
+              totalControls: x.totalControls ?? x.TotalControls ?? denom,
+              assessedControls: x.assessedControls ?? x.AssessedControls ?? denom,
+              errorMessage: x.errorMessage || x.ErrorMessage || undefined,
+            } as ComplianceItem;
+          }));
+        }
       } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load by-framework'); }
       finally { if (!cancelled) setLoading(false); }
     })();
@@ -51,7 +85,16 @@ export function useDashboardData(staffMode?: boolean) {
         const res = await fetch(`/api/assessments/progress/compliance/by-division${qs.toString() ? `?${qs.toString()}` : ''}`, { cache: 'no-store', credentials: 'include' });
         if (!res.ok) { if (!cancelled) setByDivision([]); return; }
         const data = await res.json();
-        if (!cancelled) setByDivision(Array.isArray(data) ? data : []);
+        if (!cancelled) setByDivision(Array.isArray(data) ? data.map(x => ({
+          id: x.id || x.Id,
+          name: x.name || x.Name || 'Unknown',
+          compliancePercent: (x.compliancePercent ?? x.CompliancePercent ?? 0),
+          yes: x.yes ?? x.Yes ?? 0,
+          partially: x.partially ?? x.Partially ?? 0,
+          no: x.no ?? x.No ?? 0,
+          weightedDenominator: x.weightedDenominator ?? x.WeightedDenominator ?? ( (x.yes ?? x.Yes ?? 0) + (x.partially ?? x.Partially ?? 0) + (x.no ?? x.No ?? 0) ),
+          weightedNumerator: x.weightedNumerator ?? x.WeightedNumerator ?? Math.round(((x.compliancePercent ?? x.CompliancePercent ?? 0) * (x.weightedDenominator ?? x.WeightedDenominator ?? ((x.yes ?? x.Yes ?? 0) + (x.partially ?? x.Partially ?? 0) + (x.no ?? x.No ?? 0)))) / 100),
+        })) : []);
       } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load by-division'); }
     })();
     return () => { cancelled = true; };
@@ -83,7 +126,9 @@ export function useDashboardData(staffMode?: boolean) {
             yes: data.yes ?? data.Yes ?? 0,
             partially: data.partially ?? data.Partially ?? 0,
             no: data.no ?? data.No ?? 0,
-            compliancePercent: data.compliancePercent ?? data.CompliancePercent ?? 0
+            compliancePercent: (data.compliancePercent ?? data.CompliancePercent ?? 0),
+            weightedDenominator: data.weightedDenominator ?? data.WeightedDenominator ?? ((data.yes ?? data.Yes ?? 0) + (data.partially ?? data.Partially ?? 0) + (data.no ?? data.No ?? 0)),
+            weightedNumerator: data.weightedNumerator ?? data.WeightedNumerator ?? Math.round(((data.compliancePercent ?? data.CompliancePercent ?? 0) * (data.weightedDenominator ?? data.WeightedDenominator ?? ((data.yes ?? data.Yes ?? 0) + (data.partially ?? data.Partially ?? 0) + (data.no ?? data.No ?? 0)))) / 100),
           } : null;
           if (!cancelled) setByBranch(item ? [item] : []);
           return;
@@ -96,7 +141,16 @@ export function useDashboardData(staffMode?: boolean) {
         const res = await fetch(`/api/assessments/progress/compliance/by-branch?${qs.toString()}`, { cache: 'no-store', credentials: 'include' });
         if (!res.ok) { if (!cancelled) setByBranch([]); return; }
         const data = await res.json();
-        if (!cancelled) setByBranch(Array.isArray(data) ? data : []);
+        if (!cancelled) setByBranch(Array.isArray(data) ? data.map(x => ({
+          id: x.id || x.Id,
+          name: x.name || x.Name || 'Unknown',
+          compliancePercent: (x.compliancePercent ?? x.CompliancePercent ?? 0),
+          yes: x.yes ?? x.Yes ?? 0,
+          partially: x.partially ?? x.Partially ?? 0,
+          no: x.no ?? x.No ?? 0,
+          weightedDenominator: x.weightedDenominator ?? x.WeightedDenominator ?? ((x.yes ?? x.Yes ?? 0) + (x.partially ?? x.Partially ?? 0) + (x.no ?? x.No ?? 0)),
+          weightedNumerator: x.weightedNumerator ?? x.WeightedNumerator ?? Math.round(((x.compliancePercent ?? x.CompliancePercent ?? 0) * (x.weightedDenominator ?? x.WeightedDenominator ?? ((x.yes ?? x.Yes ?? 0) + (x.partially ?? x.Partially ?? 0) + (x.no ?? x.No ?? 0)))) / 100),
+        })) : []);
       } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load by-branch'); }
     })();
     return () => { cancelled = true; };
@@ -124,15 +178,20 @@ export function useDashboardData(staffMode?: boolean) {
   useEffect(() => {
     if (staffMode) {
       const b = byBranch[0];
-      const pct = b && Number.isFinite(b.compliancePercent) ? Math.round(b.compliancePercent) : 0;
+  const rawPct = b?.compliancePercent;
+  const pct = (rawPct !== null && rawPct !== undefined && Number.isFinite(rawPct)) ? Math.round(rawPct) : 0;
       setOverallCompliancePercent(pct);
       setNonCompliantControls(b ? b.no : 0);
       return;
     }
     // Admin: weighted average across frameworks using per-framework denom as weight
     const all = byFramework;
-    const weight = all.reduce((acc, x) => acc + (x.yes + x.partially + x.no), 0);
-    const weighted = weight > 0 ? all.reduce((acc, x) => acc + (x.compliancePercent * (x.yes + x.partially + x.no)), 0) / weight : 0;
+    const weight = all.reduce((acc, x) => acc + (x.weightedDenominator ?? (x.yes + x.partially + x.no)), 0);
+    const weighted = weight > 0 ? all.reduce((acc, x) => {
+      const denom = x.weightedDenominator ?? (x.yes + x.partially + x.no);
+      const pct = x.compliancePercent ?? 0;
+      return acc + (pct * denom);
+    }, 0) / weight : 0;
     setOverallCompliancePercent(Math.round(weighted));
     // Keep non-compliant control count as backend total 'no'
     const totalsNo = all.reduce((acc, x) => acc + x.no, 0);
