@@ -8,6 +8,9 @@ import FijiNewsSlider from "@/components/ui/FijiNewsSlider";
 import FijiCyberNewsSlider from "@/components/ui/FijiCyberNewsSlider";
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import Lottie from "lottie-react";
+import circlesAnimation from "@/../public/animations/Active.json";
+import CompletedAnimation from "@/../public/animations/Completed.json";
 
 const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false });
 const RadialProgress = dynamic(() => import("@/components/ui/RadialProgress"), { ssr: false });
@@ -56,6 +59,7 @@ export default function AdminDashboardPage() {
   // --- Compliance / Framework hook ---
   const {
     overallCompliancePercent,
+    //nonCompliantControls,
     loading: compLoading,
     error: compError,
     byDivision,
@@ -151,32 +155,32 @@ export default function AdminDashboardPage() {
     }
   > = {
     "Active Assessments": {
-      cardBg: "bg-gradient-to-br from-sky-50 via-white to-indigo-50",
-      barGradient: "bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500",
-      haloPrimary: "bg-gradient-to-br from-sky-500/15 via-indigo-500/15 to-purple-500/25 blur-xl",
-      haloSecondary: "bg-gradient-to-br from-cyan-400/15 via-indigo-400/15 to-purple-400/15 blur-2xl",
-      valueGradient: "bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent",
-      subtitle: "text-slate-500",
-      dot: "bg-gradient-to-r from-sky-400 to-indigo-500 shadow-[0_0_12px_2px_rgba(59,130,246,0.25)]",
+      cardBg: "bg-gradient-to-br from-gray-900/10 via-amber-50 to-white",
+      barGradient: "bg-gradient-to-r from-gray-900 via-amber-600 to-yellow-500",
+      haloPrimary: "bg-gradient-to-br from-gray-900/15 via-amber-400/20 to-yellow-400/30 blur-xl",
+      haloSecondary: "bg-gradient-to-br from-amber-300/15 via-yellow-300/15 to-orange-200/25 blur-2xl",
+      valueGradient: "bg-gradient-to-r from-gray-900 via-amber-700 to-yellow-600 bg-clip-text text-transparent",
+      subtitle: "text-amber-700/80",
+      dot: "bg-gradient-to-r from-amber-500 to-yellow-400 shadow-[0_0_12px_2px_rgba(245,158,11,0.3)]",
     },
     Completed: {
-      cardBg: "bg-gradient-to-br from-emerald-50 via-white to-sky-50",
-      barGradient: "bg-gradient-to-r from-emerald-400 via-sky-500 to-blue-500",
-      haloPrimary: "bg-gradient-to-br from-emerald-500/15 via-sky-500/15 to-blue-500/25 blur-xl",
-      haloSecondary: "bg-gradient-to-br from-teal-400/15 via-sky-400/15 to-blue-400/15 blur-2xl",
-      valueGradient: "bg-gradient-to-r from-emerald-500 via-sky-500 to-blue-600 bg-clip-text text-transparent",
-      subtitle: "text-slate-500",
-      dot: "bg-gradient-to-r from-emerald-400 to-sky-500 shadow-[0_0_12px_2px_rgba(16,185,129,0.25)]",
+      cardBg: "bg-gradient-to-br from-gray-900/10 via-zinc-50 to-amber-50",
+      barGradient: "bg-gradient-to-r from-gray-900 via-yellow-600 to-lime-400",
+      haloPrimary: "bg-gradient-to-br from-gray-900/15 via-yellow-400/20 to-lime-400/30 blur-xl",
+      haloSecondary: "bg-gradient-to-br from-lime-300/15 via-yellow-200/15 to-emerald-200/20 blur-2xl",
+      valueGradient: "bg-gradient-to-r from-gray-900 via-yellow-700 to-lime-600 bg-clip-text text-transparent",
+      subtitle: "text-emerald-700/80",
+      dot: "bg-gradient-to-r from-emerald-400 to-lime-300 shadow-[0_0_12px_2px_rgba(16,185,129,0.3)]",
     },
   };
   const defaultMetricTheme = {
-    cardBg: "bg-gradient-to-br from-white via-slate-50 to-indigo-50",
-    barGradient: "bg-gradient-to-r from-slate-400 via-indigo-500 to-purple-500",
-    haloPrimary: "bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-sky-500/20 blur-xl",
-    haloSecondary: "bg-gradient-to-br from-indigo-400/10 via-purple-400/10 to-sky-400/10 blur-2xl",
-    valueGradient: "bg-gradient-to-r from-indigo-500 via-purple-500 to-sky-500 bg-clip-text text-transparent",
-    subtitle: "text-slate-500",
-    dot: "bg-gradient-to-r from-indigo-400 to-purple-500 shadow-[0_0_12px_2px_rgba(99,102,241,0.25)]",
+    cardBg: "bg-gradient-to-br from-gray-900/10 via-gray-50 to-stone-50",
+    barGradient: "bg-gradient-to-r from-gray-900 via-amber-500 to-yellow-500",
+    haloPrimary: "bg-gradient-to-br from-gray-900/15 via-amber-400/15 to-yellow-400/25 blur-xl",
+    haloSecondary: "bg-gradient-to-br from-gray-900/10 via-amber-300/15 to-yellow-200/20 blur-2xl",
+    valueGradient: "bg-gradient-to-r from-gray-900 via-amber-700 to-yellow-600 bg-clip-text text-transparent",
+    subtitle: "text-slate-600",
+    dot: "bg-gradient-to-r from-gray-900 to-amber-500 shadow-[0_0_12px_2px_rgba(17,24,39,0.25)]",
   };
 
   const metrics = useMemo(
@@ -230,7 +234,7 @@ export default function AdminDashboardPage() {
       </section>
 
       {/* ---- TOP METRICS ---- */}
-      <section className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {metrics.map((m) => {
           const theme = metricThemes[m.title] ?? defaultMetricTheme;
           const href =
@@ -247,11 +251,29 @@ export default function AdminDashboardPage() {
               <span className={`absolute inset-x-6 top-0 h-1 rounded-full ${theme.barGradient}`} />
               <div className={`pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full ${theme.haloPrimary}`} />
               <div className={`pointer-events-none absolute -bottom-6 -left-10 h-32 w-32 rounded-full ${theme.haloSecondary}`} />
+
+              {/* ---- (Active vs Completed) ---- */}
+              <div
+                className={`absolute inset-y-0 right-0 ${
+                  m.title === "Completed" ? "w-[35%]" : "w-[45%]"
+                } pointer-events-none opacity-90 flex items-center justify-center`}
+              >
+                <Lottie
+                  animationData={m.title === "Completed" ? CompletedAnimation : circlesAnimation}
+                  loop
+                  autoplay
+                  style={{
+                    width: m.title === "Completed" ? "65%" : "80%",
+                    height: m.title === "Completed" ? "65%" : "80%",
+                    transform: m.title === "Completed" ? "scale(0.9)" : "scale(1.2)",
+                    filter: "brightness(1.1) saturate(1.2)",
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-l from-white/60 via-transparent to-transparent" />
+              </div>
+
               <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-1">
                 <CardTitle className="text-gray-800 text-sm font-semibold uppercase tracking-wide">{m.title}</CardTitle>
-                <div className="rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-white/50 backdrop-blur-sm">
-                  <span className={`block h-2.5 w-2.5 rounded-full ${theme.dot}`} />
-                </div>
               </CardHeader>
               <CardContent className="relative z-10 pt-1">
                 <div className={`text-4xl md:text-[2.75rem] font-black leading-none ${theme.valueGradient}`}>{m.value}</div>
@@ -281,13 +303,13 @@ export default function AdminDashboardPage() {
             <div key={d.divisionId} className="w-full space-y-3">
               <button
                 onClick={() => setExpanded(expanded === d.divisionId ? null : d.divisionId)}
-                className="group relative w-full overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-indigo-50 p-4 text-left shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl"
+                className="group relative w-full overflow-hidden rounded-2xl border border-gray-900/15 bg-gradient-to-br from-gray-900/10 via-amber-50 to-white p-4 text-left shadow-[0_20px_50px_-25px_rgba(17,24,39,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-30px_rgba(17,24,39,0.65)]"
               >
-                <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-400 via-sky-400 to-purple-500 opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br from-indigo-400/15 via-sky-400/15 to-purple-400/25 blur-xl" />
-                <div className="pointer-events-none absolute -bottom-6 -left-8 h-24 w-24 rounded-full bg-gradient-to-br from-sky-400/15 via-emerald-400/15 to-indigo-400/20 blur-2xl" />
+                <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gray-900 via-amber-600 to-yellow-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br from-gray-900/15 via-amber-400/20 to-yellow-400/30 blur-xl" />
+                <div className="pointer-events-none absolute -bottom-6 -left-8 h-24 w-24 rounded-full bg-gradient-to-br from-amber-300/15 via-stone-200/20 to-gray-900/10 blur-2xl" />
                 <RadialProgress label={d.divisionName} percent={d.completionPercent ?? 0} size={140} />
-                <span className="mt-3 block text-center text-xs font-medium text-gray-500 transition-colors group-hover:text-indigo-600">
+                <span className="mt-3 block text-center text-xs font-medium text-gray-600 transition-colors group-hover:text-amber-600">
                   {expanded === d.divisionId ? "Hide branch details" : "View branch details"}
                 </span>
               </button>
@@ -296,7 +318,7 @@ export default function AdminDashboardPage() {
                   {d.branches.map((b) => (
                     <div
                       key={b.branchId}
-                      className="flex flex-col gap-3 rounded-2xl border border-white/60 bg-gradient-to-br from-white via-slate-50 to-sky-50 p-4 shadow-inner shadow-slate-200/60"
+                      className="flex flex-col gap-3 rounded-2xl border border-gray-900/10 bg-gradient-to-br from-white via-amber-50 to-stone-50 p-4 shadow-inner"
                     >
                       {renderBranchPies(b)}
                     </div>

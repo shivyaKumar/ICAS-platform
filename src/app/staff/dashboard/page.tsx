@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WelcomeBanner } from "@/components/dashboard/WelcomeBanner";
 import FijiNewsSlider from "@/components/ui/FijiNewsSlider";
 import FijiCyberNewsSlider from "@/components/ui/FijiCyberNewsSlider";
+import Lottie from "lottie-react";
+import circlesAnimation from "@/../public/animations/Active.json";
+import CompletedAnimation from "@/../public/animations/Completed.json";
 
 const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false });
 
@@ -81,32 +84,65 @@ export default function StaffDashboardPage() {
       </section>
 
       {/*Metrics Section */}
-      <section className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {[
           { title: "Assigned Tasks", value: String(stats?.assignedTasks ?? 0), subtitle: "Assigned to you" },
           { title: "Completed", value: String(completedCount), subtitle: "Assessments closed" },
-        ].map((m) => (
-          <Card
-            key={m.title}
-            className="relative overflow-hidden rounded-3xl border border-white/70 shadow-xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer bg-gradient-to-br from-white via-slate-50 to-indigo-50"
-          >
-            <span className="absolute inset-x-6 top-0 h-1 rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400" />
-            <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-indigo-400/15 via-sky-400/15 to-emerald-400/25 blur-xl" />
-            <div className="pointer-events-none absolute -bottom-6 -left-10 h-32 w-32 rounded-full bg-gradient-to-br from-sky-400/15 via-emerald-400/15 to-indigo-400/20 blur-2xl" />
-            <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-1">
-              <CardTitle className="text-gray-800 text-sm font-semibold uppercase tracking-wide">{m.title}</CardTitle>
-              <div className="rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-white/50 backdrop-blur-sm">
-                <span className="block h-2.5 w-2.5 rounded-full bg-gradient-to-r from-indigo-400 to-emerald-400 shadow-[0_0_12px_2px_rgba(99,102,241,0.25)]" />
+        ].map((m) => {
+          const theme =
+            m.title === "Assigned Tasks"
+              ? {
+                  cardBg: "bg-gradient-to-br from-gray-900/10 via-amber-50 to-white",
+                  barGradient: "bg-gradient-to-r from-gray-900 via-amber-600 to-yellow-500",
+                  haloPrimary: "bg-gradient-to-br from-gray-900/15 via-amber-400/20 to-yellow-400/30 blur-xl",
+                  haloSecondary: "bg-gradient-to-br from-amber-300/15 via-yellow-300/15 to-orange-200/25 blur-2xl",
+                  valueGradient: "bg-gradient-to-r from-gray-900 via-amber-700 to-yellow-600 bg-clip-text text-transparent",
+                  subtitle: "text-amber-700/80",
+                }
+              : {
+                  cardBg: "bg-gradient-to-br from-gray-900/10 via-zinc-50 to-amber-50",
+                  barGradient: "bg-gradient-to-r from-gray-900 via-yellow-600 to-lime-400",
+                  haloPrimary: "bg-gradient-to-br from-gray-900/15 via-yellow-400/20 to-lime-400/30 blur-xl",
+                  haloSecondary: "bg-gradient-to-br from-lime-300/15 via-yellow-200/15 to-emerald-200/20 blur-2xl",
+                  valueGradient: "bg-gradient-to-r from-gray-900 via-yellow-700 to-lime-600 bg-clip-text text-transparent",
+                  subtitle: "text-emerald-700/80",
+                };
+          return (
+            <Card
+              key={m.title}
+              className={`relative overflow-hidden rounded-3xl border border-gray-900/15 shadow-[0_25px_60px_-30px_rgba(17,24,39,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-35px_rgba(17,24,39,0.7)] cursor-pointer ${theme.cardBg}`}
+            >
+              <span className={`absolute inset-x-6 top-0 h-1 rounded-full ${theme.barGradient}`} />
+              <div className={`pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full ${theme.haloPrimary}`} />
+              <div className={`pointer-events-none absolute -bottom-6 -left-10 h-32 w-32 rounded-full ${theme.haloSecondary}`} />
+              <div
+                className={`absolute inset-y-0 right-0 ${
+                  m.title === "Completed" ? "w-[35%]" : "w-[45%]"
+                } pointer-events-none opacity-90 flex items-center justify-center`}
+              >
+                <Lottie
+                  animationData={m.title === "Completed" ? CompletedAnimation : circlesAnimation}
+                  loop
+                  autoplay
+                  style={{
+                    width: m.title === "Completed" ? "65%" : "80%",
+                    height: m.title === "Completed" ? "65%" : "80%",
+                    transform: m.title === "Completed" ? "scale(0.9)" : "scale(1.2)",
+                    filter: "brightness(1.1) saturate(1.2)",
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-l from-white/60 via-transparent to-transparent" />
               </div>
-            </CardHeader>
-            <CardContent className="relative z-10 pt-1">
-              <div className="text-4xl md:text-[2.75rem] font-black leading-none bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500 bg-clip-text text-transparent">
-                {m.value}
-              </div>
-              {m.subtitle && <p className="mt-2 text-xs md:text-sm text-slate-500">{m.subtitle}</p>}
-            </CardContent>
-          </Card>
-        ))}
+              <CardHeader className="relative z-10 flex flex-row items-center justify-between pb-1">
+                <CardTitle className="text-gray-800 text-sm font-semibold uppercase tracking-wide">{m.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="relative z-10 pt-1">
+                <div className={`text-4xl md:text-[2.75rem] font-black leading-none ${theme.valueGradient}`}>{m.value}</div>
+                {m.subtitle && <p className={`mt-2 text-xs md:text-sm ${theme.subtitle}`}>{m.subtitle}</p>}
+              </CardContent>
+            </Card>
+          );
+        })}
       </section>
 
       {/* Branch Progress (Full-width responsive layout) */}
@@ -124,12 +160,12 @@ export default function StaffDashboardPage() {
 
         {stats && (stats.branchTotals.completed + stats.branchTotals.pending + stats.branchTotals.notCompleted) > 0 && (
           <div className="flex justify-center">
-            <Card className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white via-slate-50 to-sky-50 shadow-xl p-6">
-              <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400" />
-              <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-sky-400/15 via-indigo-400/15 to-purple-400/25 blur-2xl" />
-              <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br from-indigo-400/15 via-sky-400/15 to-emerald-400/20 blur-2xl" />
+            <Card className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-gray-900/15 bg-gradient-to-br from-gray-900/10 via-amber-50 to-white shadow-[0_25px_60px_-30px_rgba(17,24,39,0.65)] p-6">
+              <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gray-900 via-amber-600 to-yellow-500" />
+              <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br from-gray-900/20 via-amber-400/20 to-yellow-400/30 blur-2xl" />
+              <div className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-gradient-to-br from-yellow-300/20 via-amber-200/20 to-gray-900/15 blur-2xl" />
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-gray-800">
+                <CardTitle className="text-sm font-semibold text-gray-900">
                   {stats.branchName} · Branch Performance
                 </CardTitle>
               </CardHeader>

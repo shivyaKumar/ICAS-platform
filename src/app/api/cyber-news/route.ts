@@ -76,9 +76,9 @@ async function fetchOGImage(url: string): Promise<string | null> {
 /* ---------- Fetch & Parse Feeds ---------- */
 async function fetchFeeds(): Promise<Article[]> {
   const sources = [
-    { name: "The Hacker News", url: "https://rss.app/feeds/Qqfs8GWJy94Kgtgm.xml" },
-    { name: "BleepingComputer", url: "https://rss.app/feeds/nvXuEMnMxgB1n7v1.xml" },
-    { name: "SecurityWeek", url: "https://rss.app/feeds/nvvNnuzMFsHNUMW0.xml" },
+    { name: "The Hacker News", url: "https://rss.app/feeds/hB3nq0umZQ0fMMgx.xml" },
+    { name: "BleepingComputer", url: "https://rss.app/feeds/jwHBpk0mBd5QjaRh.xml" },
+    { name: "SecurityWeek", url: "https://rss.app/feeds/P0z7m2QFUvo4rc4y.xml" },
     // { name: "CISA", url: "https://rss.app/feeds/k8cniJt1WSFvKEp5.xml" },
   ];
 
