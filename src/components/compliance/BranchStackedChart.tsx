@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
-type Item = { id?: string; name: string; yes?: number; partially?: number; no?: number; compliancePercent?: number };
+type Item = { id?: string; name: string; yes?: number; partially?: number; no?: number; compliancePercent?: number | null };
 
 type SeriesWeighted = { name: string; WeightedPct: number; RemainingPct: number };
 

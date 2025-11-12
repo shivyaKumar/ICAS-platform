@@ -3,12 +3,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
-type Item = { id?: string; name: string; compliancePercent: number };
+type Item = { id?: string; name: string; compliancePercent: number | null };
 
 type ClickPayload = { activePayload?: Array<{ payload?: { id?: string } }> };
 
 export default function DivisionChart({ data, onSelect }: { data: Item[]; onSelect?: (id: string) => void }) {
   const rows = Array.isArray(data) ? data : [];
+  // Normalize nullable/undefined compliancePercent to a number for the chart
+  const norm = rows.map(r => ({
+    ...r,
+    compliancePercent: Math.round(Number(r.compliancePercent ?? 0))
+  }));
   // Expand height for readability when many divisions
   const height = Math.min(440, Math.max(280, 56 + rows.length * 24));
 
@@ -20,7 +25,7 @@ export default function DivisionChart({ data, onSelect }: { data: Item[]; onSele
           <div className="text-sm text-gray-500">No data</div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
+            <BarChart data={norm} margin={{ top: 10, right: 10, bottom: 10, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} />
               <YAxis domain={[0, 100]} tickFormatter={(v) => `${Math.round(Number(v))}%`} tick={{ fontSize: 12 }} />
