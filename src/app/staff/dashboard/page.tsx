@@ -14,7 +14,7 @@ const TaskPie = dynamic(() => import("@/components/ui/TaskPie"), { ssr: false })
 
 /* ---------- TYPES ---------- */
 type Totals = { completed: number; pending: number; notCompleted: number };
-type MyStats = { assignedTasks: number; changesRequested: number; branchName: string; branchTotals: Totals };
+type MyStats = { assignedTasks: number; changesRequested: number; activeAssessments: number; branchName: string; branchTotals: Totals };
 
 export default function StaffDashboardPage() {
   const [stats, setStats] = useState<MyStats | null>(null);
@@ -86,11 +86,19 @@ export default function StaffDashboardPage() {
       {/*Metrics Section */}
       <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
         {[
-          { title: "Assigned Tasks", value: String(stats?.assignedTasks ?? 0), subtitle: "Assigned to you" },
-          { title: "Completed", value: String(completedCount), subtitle: "Assessments closed" },
+          { 
+            title: "Active Assessments", 
+            value: String(stats?.activeAssessments ?? 0), 
+            subtitle: "Ongoing in your branch" 
+          },
+          { 
+            title: "Completed", 
+            value: String(completedCount), 
+            subtitle: "Assessments closed" 
+          },
         ].map((m) => {
           const theme =
-            m.title === "Assigned Tasks"
+            m.title === "Active Assessments"
               ? {
                   cardBg: "bg-gradient-to-br from-gray-900/10 via-amber-50 to-white",
                   barGradient: "bg-gradient-to-r from-gray-900 via-amber-600 to-yellow-500",
