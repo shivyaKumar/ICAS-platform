@@ -168,6 +168,7 @@ async function fetchUser(): Promise<{
 
 /* ----------------- Main Component ----------------- */
 export default function AssessmentDetailClient() {
+  const [showRisk, setShowRisk] = useState(false);
   // Get assessment ID from the URL route
   const params = useParams<{ id: string }>();
   const numericId = useMemo(() => {
@@ -321,6 +322,15 @@ export default function AssessmentDetailClient() {
         closedAt: detailData.closedAt,
         modifiedDate: detailData.modifiedDate,
         assessmentScope: detailData.assessmentScope,
+        likelihood: detailData.likelihood,
+        impact: detailData.impact,
+        inherentRisk: detailData.inherentRisk,
+        controlEffectiveness: detailData.controlEffectiveness,
+        residualRisk: detailData.residualRisk,
+        riskLevel: detailData.riskLevel,
+        riskColor: detailData.riskColor,
+        approvedControls: detailData.approvedControls,
+        totalControls: detailData.totalControls,
         findings: findingsRaw.map(mapFinding),
       } as Assessment;
 
@@ -459,6 +469,121 @@ export default function AssessmentDetailClient() {
             )}
           </div>
         </CardContent>
+      </Card>
+
+      {/* ---------- RISK ANALYSIS COLLAPSIBLE PANEL ---------- */}
+      <Card className="border border-gray-200 shadow-sm rounded-xl 
+        bg-gradient-to-br from-yellow-50 via-white to-gray-50">
+
+        <CardHeader
+          onClick={() => setShowRisk(!showRisk)}
+          className="cursor-pointer px-4 py-2 select-none"
+        >
+
+          <div className="flex w-full items-center justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-800">
+              Risk Analysis Summary
+            </CardTitle>
+
+            <span className
+            ="text-gray-600 text-sm font-medium">
+              {showRisk ? "▲" : "▼"}
+            </span>
+          </div>
+
+        </CardHeader>
+
+        {showRisk && (
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6 py-6">
+
+            {/* --- Inherent Risk --- */}
+            <div className="p-4 border rounded-lg bg-white/70 shadow-sm">
+              <p className="text-xs uppercase font-semibold text-gray-600 tracking-wide">
+                Inherent Risk
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {assessment.inherentRisk ?? "N/A"}
+              </p>
+              <p className="text-sm text-gray-700 mt-2">
+                Likelihood: <strong>{assessment.likelihood}</strong> ×
+                Impact: <strong>{assessment.impact}</strong>
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Risk before any controls.
+              </p>
+            </div>
+
+            {/* --- Control Effectiveness --- */}
+            <div className="p-4 border rounded-lg bg-white/70 shadow-sm">
+              <p className="text-xs uppercase font-semibold text-gray-600 tracking-wide">
+                Control Effectiveness
+              </p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {assessment.controlEffectiveness ?? 0}%
+              </p>
+
+              <p className="text-sm text-gray-700 mt-2">
+                Approved: {assessment.approvedControls ?? 0} / {assessment.totalControls ?? 0}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Based on approved vs total controls.
+              </p>
+            </div>
+
+            {/* --- Residual Risk --- */}
+            <div
+              className="p-4 border rounded-lg shadow-sm"
+              style={{
+                backgroundColor:
+                  assessment.riskColor === "Red"
+                    ? "#fee2e2"
+                    : assessment.riskColor === "Orange"
+                    ? "#ffedd5"
+                    : assessment.riskColor === "Yellow"
+                    ? "#fef9c3"
+                    : "#dcfce7",
+                borderColor:
+                  assessment.riskColor === "Red"
+                    ? "#ef4444"
+                    : assessment.riskColor === "Orange"
+                    ? "#f97316"
+                    : assessment.riskColor === "Yellow"
+                    ? "#eab308"
+                    : "#22c55e",
+              }}
+            >
+              <p className="text-xs uppercase font-semibold tracking-wide text-gray-700">
+                Residual Risk
+              </p>
+
+              <p className="text-3xl font-bold text-gray-900 mt-1">
+                {assessment.residualRisk ?? "N/A"}
+              </p>
+
+              <p
+                className="text-sm font-semibold mt-2"
+                style={{
+                  color:
+                    assessment.riskColor === "Red"
+                      ? "#b91c1c"
+                      : assessment.riskColor === "Orange"
+                      ? "#c2410c"
+                      : assessment.riskColor === "Yellow"
+                      ? "#a16207"
+                      : "#166534",
+                }}
+              >
+                {assessment.riskLevel ?? "N/A"}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Risk after controls.
+              </p>
+            </div>
+
+          </CardContent>
+        )}
       </Card>
 
       <Card>

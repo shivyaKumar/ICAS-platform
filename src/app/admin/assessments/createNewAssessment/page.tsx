@@ -46,6 +46,8 @@ export default function CreateAssessmentPage() {
   const [assessmentScope, setAssessmentScope] = useState("");
   const [assessmentDate, setAssessmentDate] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [likelihood, setLikelihood] = useState<number | null>(null);
+  const [impact, setImpact] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -110,6 +112,16 @@ export default function CreateAssessmentPage() {
       });
       return;
     }
+
+    if (!likelihood || !impact) {
+      toast({
+        title: "Missing Risk Inputs",
+        description: "Please select both Likelihood and Impact.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // --------- SUBMIT TO BACKEND ---------
     const payload = {
       frameworkId: Number(selectedFramework),
@@ -118,6 +130,8 @@ export default function CreateAssessmentPage() {
       assessmentScope: assessmentScope?.trim() || null,
       assessmentDate: new Date(assessmentDate).toISOString(),
       dueDate: new Date(dueDate).toISOString(),
+      likelihood: likelihood,
+      impact: impact,
     };
 
     setIsSubmitting(true);
@@ -272,6 +286,46 @@ export default function CreateAssessmentPage() {
                 value={assessmentScope}
                 onChange={(e) => setAssessmentScope(e.target.value)}
               />
+            </div>
+
+            {/* Likelihood */}
+            <div>
+              <Label htmlFor="likelihood">Likelihood (1–5)</Label>
+              <Select
+                onValueChange={(val) => setLikelihood(Number(val))}
+                value={likelihood?.toString() || ""}
+              >
+                <SelectTrigger id="likelihood">
+                  <SelectValue placeholder="-- Select Likelihood --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Impact */}
+            <div>
+              <Label htmlFor="impact">Impact (1–5)</Label>
+              <Select
+                onValueChange={(val) => setImpact(Number(val))}
+                value={impact?.toString() || ""}
+              >
+                <SelectTrigger id="impact">
+                  <SelectValue placeholder="-- Select Impact --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4, 5].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Dates */}

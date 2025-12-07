@@ -62,7 +62,21 @@ export interface Assessment {
   closedBy?: string;
   closedAt?: string;
   progressRate?: number;
+  
+  /* ---------- Risk Analysis Fields ---------- */
+  likelihood?: number;
+  impact?: number;
+  inherentRisk?: number;
+  controlEffectiveness?: number;
+  residualRisk?: number;
+  riskLevel?: string;
+  riskColor?: string;
+
+  approvedControls?: number;
+  totalControls?: number;
+  
   status?: string;
   isClosed?: boolean;                 
   findings: Finding[];
 }
+
